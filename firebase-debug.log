@@ -1,0 +1,54 @@
+[debug] [2023-08-23T12:05:31.298Z] ----------------------------------------------------------------------
+[debug] [2023-08-23T12:05:31.300Z] Command:       /usr/local/bin/node /usr/local/bin/firebase init
+[debug] [2023-08-23T12:05:31.301Z] CLI Version:   12.5.0
+[debug] [2023-08-23T12:05:31.301Z] Platform:      darwin
+[debug] [2023-08-23T12:05:31.302Z] Node Version:  v16.17.1
+[debug] [2023-08-23T12:05:31.304Z] Time:          Wed Aug 23 2023 13:05:31 GMT+0100 (West Africa Standard Time)
+[debug] [2023-08-23T12:05:31.304Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2023-08-23T12:05:31.311Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2023-08-23T12:05:31.312Z] > authorizing via signed-in user (olaniyihoppee@gmail.com)
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/mac/Documents/Kubique/Kubiqueapi
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] but for now we'll just set up a default project.
+[info] 
+[info] i  If you want to create a project in a Google Cloud organization or folder, please use "firebase projects:create" instead, and return to this command when you've created the project. 
+[debug] [2023-08-23T12:05:59.643Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects [none]
+[debug] [2023-08-23T12:05:59.644Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"projectId":"kubiques","name":"kubiques"}
+[debug] [2023-08-23T12:06:00.984Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects 200
+[debug] [2023-08-23T12:06:00.984Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects {"name":"operations/cp.5521618523318612605"}
+[debug] [2023-08-23T12:06:00.985Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 [none]
+[debug] [2023-08-23T12:06:02.151Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 200
+[debug] [2023-08-23T12:06:02.151Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 {"name":"operations/cp.5521618523318612605"}
+[debug] [2023-08-23T12:06:02.655Z] [Project Creation Poller] Retrying task index 0
+[debug] [2023-08-23T12:06:02.656Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 [none]
+[debug] [2023-08-23T12:06:04.137Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 200
+[debug] [2023-08-23T12:06:04.137Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 {"name":"operations/cp.5521618523318612605","metadata":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.ProjectCreationStatus","gettable":true}}
+[debug] [2023-08-23T12:06:05.138Z] [Project Creation Poller] Retrying task index 0
+[debug] [2023-08-23T12:06:05.138Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 [none]
+[debug] [2023-08-23T12:06:06.334Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 200
+[debug] [2023-08-23T12:06:06.334Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/operations/cp.5521618523318612605 {"name":"operations/cp.5521618523318612605","metadata":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.ProjectCreationStatus","gettable":true,"ready":true},"done":true,"response":{"@type":"type.googleapis.com/google.cloudresourcemanager.v1.Project","projectNumber":"432078550563","projectId":"kubiques","lifecycleState":"ACTIVE","name":"kubiques","createTime":"2023-08-23T12:05:29.517Z"}}
+[debug] [2023-08-23T12:06:06.336Z] >>> [apiv2][query] POST https://firebase.googleapis.com/v1beta1/projects/kubiques:addFirebase [none]
+[debug] [2023-08-23T12:06:07.568Z] <<< [apiv2][status] POST https://firebase.googleapis.com/v1beta1/projects/kubiques:addFirebase 403
+[debug] [2023-08-23T12:06:07.568Z] <<< [apiv2][body] POST https://firebase.googleapis.com/v1beta1/projects/kubiques:addFirebase {"error":{"code":403,"message":"The caller does not have permission","status":"PERMISSION_DENIED"}}
+[debug] [2023-08-23T12:06:07.569Z] HTTP Error: 403, The caller does not have permission
+[debug] [2023-08-23T12:06:07.917Z] FirebaseError: HTTP Error: 403, The caller does not have permission
+    at responseToError (/usr/local/lib/node_modules/firebase-tools/lib/responseToError.js:49:12)
+    at RetryOperation._fn (/usr/local/lib/node_modules/firebase-tools/lib/apiv2.js:285:77)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+[error] 
+[error] Error: Failed to add Firebase to Google Cloud Platform project. See firebase-debug.log for more info.
