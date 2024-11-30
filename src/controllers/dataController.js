@@ -17,7 +17,7 @@ exports.uploadFile = async (req, res) => {
         const switchId = req.body.switch // Get the switch ID from the request
 
         if (!file) {
-            return res.status(400).send('No file uploaded.')
+            return res.status(400).send('No file was uploaded.')
         }
 
         // Fetch the switch to get the account ID
