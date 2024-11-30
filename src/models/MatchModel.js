@@ -13,6 +13,7 @@ const MatchSchema = new Schema({
         required: true,
     },
     exactMatches: [{ type: Object, required: false }],
+    similarDetailsMatches: [{ type: Object, required: false }],
     probableMatches: [{ type: Object, required: false }],
     matchedStatements: [{ type: Object, required: false }],
     // unmatchedItems: [{ type: Object, required: false }],

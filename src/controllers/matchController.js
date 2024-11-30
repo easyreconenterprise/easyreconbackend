@@ -6,6 +6,7 @@ exports.saveMatchedItems = async (req, res) => {
         switchId,
         exactMatches = [],
         probableMatches = [],
+        similarDetailsMatches = [],
         matchedStatements = [],
         unmatchedItems = [], // Expecting unmatchedItems directly from the request body
         uploadSessionId,
@@ -29,6 +30,7 @@ exports.saveMatchedItems = async (req, res) => {
                 accountId,
                 switchId,
                 exactMatches: [...exactMatches], // Save the first batch of exact matches
+                similarDetailsMatches: [...similarDetailsMatches], // Save the first batch of exact matches
                 probableMatches, // Save the first batch of probable matches
                 matchedStatements, // Save the first batch of matched statements
                 unmatchedItems, // Use the unmatchedItems from the request body
@@ -44,6 +46,18 @@ exports.saveMatchedItems = async (req, res) => {
             exactMatches.forEach((newMatch) => {
                 if (!existingExactIds.has(newMatch.USID)) {
                     match.exactMatches.push(newMatch)
+                }
+            })
+            const existingSimilarDetailsIds = new Set(
+                match.similarDetailsMatches.map(
+                    (existingSimilarDetails) => existingSimilarDetails.USID
+                )
+            )
+            similarDetailsMatches.forEach((newsimilarDetailsMatch) => {
+                if (
+                    !existingSimilarDetailsIds.has(newsimilarDetailsMatch.USID)
+                ) {
+                    match.similarDetailsMatches.push(newsimilarDetailsMatch)
                 }
             })
 
