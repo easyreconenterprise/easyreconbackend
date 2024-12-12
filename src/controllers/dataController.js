@@ -28,7 +28,9 @@ exports.uploadFile = async (req, res) => {
 
         const accountId = switchData.account._id // Get the account ID from the switch
 
-        const filePath = path.join(__dirname, '../uploads', file.filename)
+        // const filePath = path.join(__dirname, '../uploads', file.filename)
+        const filePath = path.join('/tmp', file.filename)
+
         const fileStream = fs.createReadStream(filePath)
 
         // Generate a new upload session ID

@@ -10,7 +10,8 @@ const TextModel = require('../models/TextModel')
 const upload = multer({
     storage: multer.diskStorage({
         destination: (req, file, cb) => {
-            cb(null, path.join(__dirname, '../uploads')) // Resolve the absolute path
+            // cb(null, path.join(__dirname, '../uploads')) // Resolve the absolute path
+            cb(null, '/tmp')
         },
         filename: (req, file, cb) => {
             cb(null, Date.now() + '-' + file.originalname)
