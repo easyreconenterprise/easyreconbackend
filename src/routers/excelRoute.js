@@ -82,7 +82,7 @@ router.get(
     dataController.getLedgerBySwitchId
 )
 router.get(
-    '/laststatement/',
+    '/laststatement',
     authenticateUser,
     dataController.getLastStatementDate
 )
