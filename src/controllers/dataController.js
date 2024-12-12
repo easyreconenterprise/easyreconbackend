@@ -118,85 +118,174 @@ const Switch = require('../models/switchModel')
 //         return res.status(500).send('Internal server error.')
 //     }
 // }
+// exports.uploadFile = async (req, res) => {
+//     try {
+//         const file = req.file
+//         const userId = req.user.id // Get the user's ID from the authentication
+//         const switchId = req.body.switch // Get the switch ID from the request
+
+//         if (!file) {
+//             return res.status(400).send('No file was uploaded.')
+//         }
+
+//         // Fetch the switch to get the account ID
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         if (!switchData) {
+//             return res.status(404).send('Switch not found.')
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+//         const filePath = path.join('/tmp', file.filename) // Path to the uploaded file
+//         const rows = []
+//         const uploadSessionId = new mongoose.Types.ObjectId() // Generate a new upload session ID
+
+//         fs.createReadStream(filePath)
+//             .pipe(fastCsv.parse({ headers: true }))
+//             .on('data', (row) => {
+//                 // Validate and map each row
+//                 const keys = Object.keys(row)
+//                 if (keys.length < 4) {
+//                     throw new Error('Insufficient columns in the file.')
+//                 }
+
+//                 const mappedRow = {
+//                     PostDate: row[keys[0]], // First column
+//                     ValDate: row[keys[1]], // Second column
+//                     Details: row[keys[2]], // Third column
+//                     Debit:
+//                         parseFloat(String(row[keys[3]]).replace(/,/g, '')) ||
+//                         0.0,
+//                     Credit: 0.0, // Default value
+//                     USID: row[keys[4]], // Fifth column
+//                 }
+
+//                 rows.push(mappedRow)
+//             })
+//             .on('end', async () => {
+//                 try {
+//                     // Calculate the total debit from the parsed data
+//                     const totalDebitForCurrentFile = rows.reduce(
+//                         (sum, row) => sum + row.Debit,
+//                         0
+//                     )
+
+//                     // Fetch the account and update the balance
+//                     const account = await Account.findById(accountId)
+//                     if (!account) {
+//                         return res.status(404).send('Account not found.')
+//                     }
+
+//                     const currentBalance = parseFloat(
+//                         account.balanceAsPerLedger || 0
+//                     )
+//                     const updatedBalance =
+//                         currentBalance + totalDebitForCurrentFile
+//                     account.balanceAsPerLedger = updatedBalance.toString()
+//                     await account.save()
+
+//                     // Save data rows to the database
+//                     const promises = rows.map(async (row) => {
+//                         await DataModel.create({
+//                             userId,
+//                             switch: switchId,
+//                             accountId,
+//                             uploadSessionId,
+//                             ...row,
+//                         })
+//                     })
+
+//                     await Promise.all(promises)
+
+//                     // Delete the uploaded file
+//                     fs.unlinkSync(filePath)
+
+//                     res.status(200).json({
+//                         message:
+//                             'File uploaded and data saved to the database.',
+//                         updatedBalance,
+//                         totalDebitForCurrentFile,
+//                     })
+//                 } catch (err) {
+//                     console.error('Error saving data:', err)
+//                     res.status(500).send('Error saving data.')
+//                 }
+//             })
+//             .on('error', (err) => {
+//                 console.error('Error processing file:', err)
+//                 res.status(500).send('Error processing file.')
+//             })
+//     } catch (err) {
+//         console.error('Error uploading file:', err)
+//         res.status(500).send('Internal server error.')
+//     }
+// }
 exports.uploadFile = async (req, res) => {
     try {
         const file = req.file
-        const userId = req.user.id // Get the user's ID from the authentication
-        const switchId = req.body.switch // Get the switch ID from the request
+        const userId = req.user.id
+        const switchId = req.body.switch
 
         if (!file) {
             return res.status(400).send('No file was uploaded.')
         }
 
-        // Fetch the switch to get the account ID
         const switchData = await Switch.findById(switchId).populate('account')
         if (!switchData) {
             return res.status(404).send('Switch not found.')
         }
 
-        const accountId = switchData.account._id // Get the account ID from the switch
-        const filePath = path.join('/tmp', file.filename) // Path to the uploaded file
+        const accountId = switchData.account._id
+        const filePath = path.join('/tmp', file.filename)
         const rows = []
-        const uploadSessionId = new mongoose.Types.ObjectId() // Generate a new upload session ID
+        const uploadSessionId = new mongoose.Types.ObjectId()
 
         fs.createReadStream(filePath)
             .pipe(fastCsv.parse({ headers: true }))
-            .on('data', (row) => {
-                // Validate and map each row
-                const keys = Object.keys(row)
-                if (keys.length < 4) {
-                    throw new Error('Insufficient columns in the file.')
+            .on('data', async (row) => {
+                try {
+                    const mappedRow = {
+                        PostDate: row['PostDate'],
+                        ValDate: row['ValDate'],
+                        Details: row['Details'],
+                        Debit:
+                            parseFloat(row['Debit'].replace(/,/g, '')) || 0.0,
+                        Credit: 0.0,
+                        USID: row['USID'],
+                    }
+                    rows.push(mappedRow)
+                } catch (err) {
+                    console.error('Error processing row:', err)
                 }
-
-                const mappedRow = {
-                    PostDate: row[keys[0]], // First column
-                    ValDate: row[keys[1]], // Second column
-                    Details: row[keys[2]], // Third column
-                    Debit:
-                        parseFloat(String(row[keys[3]]).replace(/,/g, '')) ||
-                        0.0,
-                    Credit: 0.0, // Default value
-                    USID: row[keys[4]], // Fifth column
-                }
-
-                rows.push(mappedRow)
             })
             .on('end', async () => {
                 try {
-                    // Calculate the total debit from the parsed data
                     const totalDebitForCurrentFile = rows.reduce(
                         (sum, row) => sum + row.Debit,
                         0
                     )
-
-                    // Fetch the account and update the balance
                     const account = await Account.findById(accountId)
                     if (!account) {
                         return res.status(404).send('Account not found.')
                     }
 
-                    const currentBalance = parseFloat(
-                        account.balanceAsPerLedger || 0
-                    )
-                    const updatedBalance =
-                        currentBalance + totalDebitForCurrentFile
-                    account.balanceAsPerLedger = updatedBalance.toString()
+                    const updatedBalance = (
+                        parseFloat(account.balanceAsPerLedger || 0) +
+                        totalDebitForCurrentFile
+                    ).toString()
+                    account.balanceAsPerLedger = updatedBalance
                     await account.save()
 
-                    // Save data rows to the database
-                    const promises = rows.map(async (row) => {
-                        await DataModel.create({
+                    const promises = rows.map((row) =>
+                        DataModel.create({
                             userId,
                             switch: switchId,
                             accountId,
                             uploadSessionId,
                             ...row,
                         })
-                    })
+                    )
 
                     await Promise.all(promises)
-
-                    // Delete the uploaded file
                     fs.unlinkSync(filePath)
 
                     res.status(200).json({
