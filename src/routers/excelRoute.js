@@ -21,7 +21,8 @@ const upload = multer({
 const states = multer({
     storage: multer.diskStorage({
         destination: (req, file, cb) => {
-            cb(null, path.join(__dirname, '../statement')) // Resolve the absolute path
+            // cb(null, path.join(__dirname, '../statement')) // Resolve the absolute path
+            cb(null, '/tmp/statement')
         },
         filename: (req, file, cb) => {
             cb(null, Date.now() + '-' + file.originalname)

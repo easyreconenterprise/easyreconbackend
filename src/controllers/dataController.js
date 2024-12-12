@@ -213,7 +213,9 @@ exports.statementFile = async (req, res) => {
         }
 
         const accountId = switchData.account._id // Get the account ID from the switch
-        const filePath = path.join(__dirname, '../statement', file.filename)
+        // const filePath = path.join(__dirname, '../statement', file.filename)
+
+        const filePath = path.join('/tmp/statement', file.filename)
         const fileStream = fs.createReadStream(filePath)
         const uploadSessionId = new mongoose.Types.ObjectId()
 
