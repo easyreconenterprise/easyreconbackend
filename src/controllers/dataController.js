@@ -388,24 +388,128 @@ exports.uploadFile = async (req, res) => {
 //         return res.status(500).send('Internal server error.')
 //     }
 // }
+// exports.statementFile = async (req, res) => {
+//     try {
+//         const file = req.file
+//         const userId = req.user.id // Get the user's ID from the authentication
+//         const switchId = req.body.switch // Get the switch ID from the request
+
+//         if (!file) {
+//             return res.status(400).send('No file uploaded.')
+//         }
+//         // Fetch the switch to get the account ID
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         if (!switchData) {
+//             return res.status(404).send('Switch not found.')
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+//         // const filePath = path.join(__dirname, '../statement', file.filename)
+
+//         const filePath = path.join('/tmp/statement', file.filename)
+//         const fileStream = fs.createReadStream(filePath)
+//         const uploadSessionId = new mongoose.Types.ObjectId()
+
+//         Papa.parse(fileStream, {
+//             header: true,
+//             dynamicTyping: true,
+//             complete: async (results) => {
+//                 const jsonData = results.data
+//                     .map((row) => {
+//                         const keys = Object.keys(row)
+
+//                         // Ensure that we have at least 4 columns
+//                         if (keys.length < 4) {
+//                             throw new Error('Insufficient columns in the file.')
+//                         }
+
+//                         // Dynamically map the columns to schema fields
+//                         const mappedRow = {
+//                             PostDate: row[keys[0]], // First column
+//                             ValDate: row[keys[1]], // Second column
+//                             Details: row[keys[2]], // Third column
+//                             Credit: parseFloat(
+//                                 String(row[keys[3]]).replace(/,/g, '')
+//                             ),
+
+//                             Debit: 0.0,
+//                             USID: row[keys[4]], // Fourth column
+//                         }
+
+//                         return mappedRow
+//                     })
+//                     .filter((row) => Object.values(row).some(Boolean))
+//                 try {
+//                     // Calculate the total credit from the parsed data for the current file
+//                     const totalCreditForCurrentFile = jsonData.reduce(
+//                         (sum, row) => sum + row.Credit,
+//                         0
+//                     )
+
+//                     // Fetch the account
+//                     const account = await Account.findById(accountId)
+//                     if (!account) {
+//                         return res.status(404).send('Account not found.')
+//                     }
+
+//                     // Update the balanceAsPerLedger with the total debit of this file
+//                     const currentBalance = parseFloat(
+//                         account.balanceAsPerStmt || 0
+//                     )
+//                     const updatedBalance =
+//                         currentBalance + totalCreditForCurrentFile
+//                     account.balanceAsPerStmt = updatedBalance.toString()
+
+//                     await account.save()
+
+//                     const promises = jsonData.map(async (row) => {
+//                         await StatementModel.create({
+//                             userId,
+//                             switch: switchId,
+//                             accountId, // Use the account ID from the switch
+//                             uploadSessionId, // Attach the upload session ID
+//                             ...row,
+//                         })
+//                     })
+
+//                     await Promise.all(promises)
+
+//                     fs.unlinkSync(filePath) // Delete the uploaded file
+//                     return res.status(200).json({
+//                         message:
+//                             'File uploaded and data saved to the database.',
+//                         updatedBalance,
+//                         totalCreditForCurrentFile,
+//                     })
+//                 } catch (err) {
+//                     console.error('Error saving data to the database:', err)
+//                     return res.status(500).send('Internal server error.')
+//                 }
+//             },
+//         })
+//     } catch (err) {
+//         console.error('Error uploading file:', err)
+//         return res.status(500).send('Internal server error.')
+//     }
+// }
+
 exports.statementFile = async (req, res) => {
     try {
         const file = req.file
-        const userId = req.user.id // Get the user's ID from the authentication
-        const switchId = req.body.switch // Get the switch ID from the request
+        const userId = req.user.id
+        const switchId = req.body.switch
 
         if (!file) {
             return res.status(400).send('No file uploaded.')
         }
+
         // Fetch the switch to get the account ID
         const switchData = await Switch.findById(switchId).populate('account')
         if (!switchData) {
             return res.status(404).send('Switch not found.')
         }
 
-        const accountId = switchData.account._id // Get the account ID from the switch
-        // const filePath = path.join(__dirname, '../statement', file.filename)
-
+        const accountId = switchData.account._id
         const filePath = path.join('/tmp/statement', file.filename)
         const fileStream = fs.createReadStream(filePath)
         const uploadSessionId = new mongoose.Types.ObjectId()
@@ -418,56 +522,51 @@ exports.statementFile = async (req, res) => {
                     .map((row) => {
                         const keys = Object.keys(row)
 
-                        // Ensure that we have at least 4 columns
+                        // Ensure at least 4 columns
                         if (keys.length < 4) {
                             throw new Error('Insufficient columns in the file.')
                         }
 
-                        // Dynamically map the columns to schema fields
-                        const mappedRow = {
-                            PostDate: row[keys[0]], // First column
-                            ValDate: row[keys[1]], // Second column
-                            Details: row[keys[2]], // Third column
-                            Credit: parseFloat(
-                                String(row[keys[3]]).replace(/,/g, '')
-                            ),
-
+                        // Map columns to schema fields
+                        return {
+                            PostDate: row[keys[0]],
+                            ValDate: row[keys[1]],
+                            Details: row[keys[2]],
+                            Credit:
+                                parseFloat(
+                                    String(row[keys[3]]).replace(/,/g, '')
+                                ) || 0.0,
                             Debit: 0.0,
-                            USID: row[keys[4]], // Fourth column
+                            USID: row[keys[4]],
                         }
-
-                        return mappedRow
                     })
                     .filter((row) => Object.values(row).some(Boolean))
+
                 try {
-                    // Calculate the total credit from the parsed data for the current file
                     const totalCreditForCurrentFile = jsonData.reduce(
                         (sum, row) => sum + row.Credit,
                         0
                     )
 
-                    // Fetch the account
                     const account = await Account.findById(accountId)
                     if (!account) {
                         return res.status(404).send('Account not found.')
                     }
 
-                    // Update the balanceAsPerLedger with the total debit of this file
                     const currentBalance = parseFloat(
                         account.balanceAsPerStmt || 0
                     )
                     const updatedBalance =
                         currentBalance + totalCreditForCurrentFile
                     account.balanceAsPerStmt = updatedBalance.toString()
-
                     await account.save()
 
                     const promises = jsonData.map(async (row) => {
                         await StatementModel.create({
                             userId,
                             switch: switchId,
-                            accountId, // Use the account ID from the switch
-                            uploadSessionId, // Attach the upload session ID
+                            accountId,
+                            uploadSessionId,
                             ...row,
                         })
                     })
@@ -492,6 +591,7 @@ exports.statementFile = async (req, res) => {
         return res.status(500).send('Internal server error.')
     }
 }
+
 exports.getData = async (req, res) => {
     try {
         if (!req.user || !req.user.id) {
