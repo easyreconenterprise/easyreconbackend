@@ -8,11 +8,37 @@ const CategorizedDataModel = require('../models/CategorizedDataModel') // Import
 const authenticateUser = require('../middlewares/authenticateUser')
 const TextModel = require('../models/TextModel')
 
-const upload = multer({
+// const upload = multer({
+//     storage: multer.diskStorage({
+//         destination: (req, file, cb) => {
+//             cb(null, path.join(__dirname, '../uploads')) // Resolve the absolute path
+//             // cb(null, '/tmp')
+//         },
+//         filename: (req, file, cb) => {
+//             cb(null, Date.now() + '-' + file.originalname)
+//         },
+//     }),
+// })
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, process.env.UPLOAD_DIR || './uploads') // Use environment variable or default path
+    },
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + file.originalname) // Unique filename
+    },
+})
+
+const upload = multer({ storage: storage })
+
+const states = multer({
     storage: multer.diskStorage({
         destination: (req, file, cb) => {
-            // cb(null, path.join(__dirname, '../uploads')) // Resolve the absolute path
-            cb(null, '/tmp')
+            const uploadPath =
+                process.env.UPLOAD_DIR_STATEMENT || '/tmp/statement'
+            if (!fs.existsSync(uploadPath)) {
+                fs.mkdirSync(uploadPath, { recursive: true }) // Ensure directory exists
+            }
+            cb(null, uploadPath)
         },
         filename: (req, file, cb) => {
             cb(null, Date.now() + '-' + file.originalname)
@@ -31,20 +57,20 @@ const upload = multer({
 //     }),
 // })
 
-const states = multer({
-    storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            const uploadPath = '/tmp/statement'
-            if (!fs.existsSync(uploadPath)) {
-                fs.mkdirSync(uploadPath, { recursive: true }) // Ensure directory exists
-            }
-            cb(null, uploadPath)
-        },
-        filename: (req, file, cb) => {
-            cb(null, Date.now() + '-' + file.originalname)
-        },
-    }),
-})
+// const states = multer({
+//     storage: multer.diskStorage({
+//         destination: (req, file, cb) => {
+//             const uploadPath = '/tmp/statement'
+//             if (!fs.existsSync(uploadPath)) {
+//                 fs.mkdirSync(uploadPath, { recursive: true }) // Ensure directory exists
+//             }
+//             cb(null, uploadPath)
+//         },
+//         filename: (req, file, cb) => {
+//             cb(null, Date.now() + '-' + file.originalname)
+//         },
+//     }),
+// })
 
 // Upload route
 
