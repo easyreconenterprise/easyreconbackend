@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const multer = require('multer')
 const path = require('path')
+const fs = require('fs')
 const dataController = require('../controllers/dataController') // Import the data controller
 const CategorizedDataModel = require('../models/CategorizedDataModel') // Import your categorized data model
 const authenticateUser = require('../middlewares/authenticateUser')
