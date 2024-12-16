@@ -18,11 +18,26 @@ const upload = multer({
         },
     }),
 })
+// const states = multer({
+//     storage: multer.diskStorage({
+//         destination: (req, file, cb) => {
+//             // cb(null, path.join(__dirname, '../statement')) // Resolve the absolute path
+//             cb(null, '/tmp/statement')
+//         },
+//         filename: (req, file, cb) => {
+//             cb(null, Date.now() + '-' + file.originalname)
+//         },
+//     }),
+// })
+
 const states = multer({
     storage: multer.diskStorage({
         destination: (req, file, cb) => {
-            // cb(null, path.join(__dirname, '../statement')) // Resolve the absolute path
-            cb(null, '/tmp/statement')
+            const uploadPath = '/tmp/statement'
+            if (!fs.existsSync(uploadPath)) {
+                fs.mkdirSync(uploadPath, { recursive: true }) // Ensure directory exists
+            }
+            cb(null, uploadPath)
         },
         filename: (req, file, cb) => {
             cb(null, Date.now() + '-' + file.originalname)
