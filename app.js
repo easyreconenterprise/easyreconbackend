@@ -27,6 +27,9 @@ mongoose
         useNewUrlParser: true,
         useUnifiedTopology: true,
         bufferTimeoutMS: 30000,
+        connectTimeoutMS: 10000,
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 30000,
     })
     .then(() => console.log('DB connected'))
     .catch((err) => console.log(err))
