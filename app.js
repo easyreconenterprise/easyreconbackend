@@ -26,9 +26,10 @@ mongoose
     .connect(process.env.DB_URL, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
-        connectTimeoutMS: 10000, // Connection timeout
-        serverSelectionTimeoutMS: 20000,
-        socketTimeoutMS: 60000,
+
+        connectTimeoutMS: 15000,
+        serverSelectionTimeoutMS: 30000,
+        socketTimeoutMS: 120000,
 
         // bufferTimeoutMS: 30000,
     })
