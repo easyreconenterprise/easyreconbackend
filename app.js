@@ -1,5 +1,6 @@
 const express = require('express')
 const authRoute = require('./src/routers/authRoute')
+const { S3 } = require('@aws-sdk/client-s3')
 const excelRoute = require('./src/routers/excelRoute')
 const matchRoute = require('./src/routers/matchRoute')
 const ruleRoute = require('./src/routers/ruleRoute')
@@ -15,6 +16,11 @@ dotenv.config()
 const app = express()
 app.use(express.json({ limit: '20mb' })) // Increase limit to 20mb
 app.use(express.urlencoded({ limit: '20mb', extended: true })) // Increase limit to 20mb
+
+console.log('new AWS Access Key:', process.env.AWS_ACCESS_KEY_ID)
+console.log('new AWS Secret Key:', process.env.AWS_SECRET_ACCESS_KEY)
+console.log('new AWS Region:', process.env.AWS_REGION)
+console.log('new AWS Bucket Name:', process.env.AWS_BUCKET_NAME)
 
 mongoose
     .connect(process.env.DB_URL, {
