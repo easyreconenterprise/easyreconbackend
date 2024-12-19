@@ -956,6 +956,128 @@ const s3 = new S3Client({
 //     }
 // }
 
+// exports.uploadFile = async (req, res) => {
+//     try {
+//         const file = req.file // Uploaded file
+//         const userId = req.user.id // User ID
+//         const switchId = req.body.switch // Switch ID from request body
+
+//         if (!file) {
+//             return res.status(400).json({ error: 'No file was uploaded.' })
+//         }
+
+//         // Fetch the switch to get the account ID
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         if (!switchData) {
+//             return res.status(404).json({ error: 'Switch not found.' })
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+
+//         // Generate a new upload session ID
+//         const uploadSessionId = new mongoose.Types.ObjectId()
+
+//         // Fetch the file from S3
+//         const command = new GetObjectCommand({
+//             Bucket: process.env.AWS_BUCKET_NAME,
+//             Key: file.key,
+//         })
+
+//         const response = await s3.send(command) // Execute the command
+
+//         // S3 body comes as a stream, so we need to process it
+//         const s3FileStream = Readable.from(response.Body)
+
+//         const chunks = []
+//         s3FileStream.on('data', (chunk) => chunks.push(chunk))
+//         s3FileStream.on('end', async () => {
+//             const fileData = Buffer.concat(chunks).toString('utf-8')
+
+//             try {
+//                 Papa.parse(fileData, {
+//                     header: true,
+//                     dynamicTyping: true,
+//                     complete: async (results) => {
+//                         const jsonData = results.data // Ensure jsonData is accessible
+
+//                         // Extracting keys dynamically
+//                         const keys = Object.keys(jsonData[0])
+
+//                         // Mapping rows with correct fields
+//                         const mappedData = jsonData.map((row) => ({
+//                             PostDate: row[keys[0]],
+//                             ValDate: row[keys[1]],
+//                             Details: row[keys[2]],
+//                             Debit: row[keys[3]] || '0.00',
+//                             Credit: 0.0,
+//                             USID: row[keys[4]] || '0.00',
+//                         }))
+
+//                         try {
+//                             const totalDebit = mappedData.reduce(
+//                                 (sum, row) => sum + (row.Debit || 0),
+//                                 0
+//                             )
+
+//                             const account = await Account.findById(accountId)
+//                             if (!account) {
+//                                 return res
+//                                     .status(404)
+//                                     .json({ error: 'Account not found.' })
+//                             }
+
+//                             const currentBalance = parseFloat(
+//                                 account.balanceAsPerLedger || 0
+//                             )
+//                             account.balanceAsPerLedger = (
+//                                 currentBalance + totalDebit
+//                             ).toFixed(2)
+
+//                             await account.save()
+
+//                             await DataModel.insertMany(
+//                                 mappedData.map((row) => ({
+//                                     userId,
+//                                     switch: switchId,
+//                                     accountId,
+//                                     uploadSessionId,
+//                                     ...row,
+//                                 }))
+//                             )
+
+//                             return res.status(200).json({
+//                                 message:
+//                                     'File uploaded and data saved to the database.',
+//                                 fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.key}`,
+//                                 updatedBalance: account.balanceAsPerLedger,
+//                                 totalDebit,
+//                             })
+//                         } catch (err) {
+//                             console.error('Error saving data:', err)
+//                             return res
+//                                 .status(500)
+//                                 .json({ error: 'Error saving data.' })
+//                         }
+//                     },
+//                 })
+//             } catch (parseError) {
+//                 console.error('Error parsing file:', parseError)
+//                 return res.status(500).json({ error: 'Error parsing file.' })
+//             }
+//         })
+
+//         s3FileStream.on('error', (err) => {
+//             console.error('S3 File Stream Error:', err)
+//             return res
+//                 .status(500)
+//                 .json({ error: 'Error processing file from S3.' })
+//         })
+//     } catch (err) {
+//         console.error('Error uploading file:', err)
+//         return res.status(500).json({ error: 'Internal server error.' })
+//     }
+// }
+
 exports.uploadFile = async (req, res) => {
     try {
         const file = req.file // Uploaded file
@@ -1014,8 +1136,9 @@ exports.uploadFile = async (req, res) => {
                         }))
 
                         try {
+                            // Ensure totalDebit is treated as a number
                             const totalDebit = mappedData.reduce(
-                                (sum, row) => sum + (row.Debit || 0),
+                                (sum, row) => sum + parseFloat(row.Debit || 0),
                                 0
                             )
 
@@ -1275,6 +1398,121 @@ exports.uploadFile = async (req, res) => {
 //         return res.status(500).send('Internal server error.')
 //     }
 // }
+// exports.statementFile = async (req, res) => {
+//     try {
+//         const file = req.file // Uploaded file
+//         const userId = req.user.id // User ID
+//         const switchId = req.body.switch // Switch ID from request body
+
+//         if (!file) {
+//             return res.status(400).json({ error: 'No file was uploaded.' })
+//         }
+
+//         // Fetch the switch to get the account ID
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         if (!switchData) {
+//             return res.status(404).json({ error: 'Switch not found.' })
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+//         const uploadSessionId = new mongoose.Types.ObjectId()
+
+//         const command = new GetObjectCommand({
+//             Bucket: process.env.AWS_BUCKET_NAME,
+//             Key: file.key,
+//         })
+
+//         const response = await s3.send(command)
+//         const s3FileStream = Readable.from(response.Body)
+
+//         // File is uploaded to S3
+
+//         const chunks = []
+//         s3FileStream.on('data', (chunk) => chunks.push(chunk))
+//         s3FileStream.on('end', async () => {
+//             const fileContent = Buffer.concat(chunks).toString('utf-8')
+
+//             try {
+//                 Papa.parse(fileContent, {
+//                     header: true,
+//                     dynamicTyping: true,
+//                     complete: async (results) => {
+//                         const jsonData = results.data // Ensure jsonData is accessible
+//                         const keys = Object.keys(jsonData[0])
+//                         // Mapping rows with correct fields
+//                         const mappedData = jsonData.map((row) => ({
+//                             PostDate: row[keys[0]],
+//                             ValDate: row[keys[1]],
+//                             Details: row[keys[2]],
+//                             Credit: row[keys[3]] || '0.00',
+//                             Debit: 0.0,
+//                             USID: row[keys[4]] || '0.00',
+//                         }))
+//                         try {
+//                             const totalCredit = mappedData.reduce(
+//                                 (sum, row) => sum + (row.Credit || 0),
+//                                 0
+//                             )
+
+//                             const account = await Account.findById(accountId)
+//                             if (!account) {
+//                                 return res
+//                                     .status(404)
+//                                     .json({ error: 'Account not found.' })
+//                             }
+
+//                             const currentBalance = parseFloat(
+//                                 account.balanceAsPerStmt || 0
+//                             )
+//                             account.balanceAsPerStmt = (
+//                                 currentBalance + totalCredit
+//                             ).toFixed(2)
+
+//                             await account.save()
+
+//                             await StatementModel.insertMany(
+//                                 mappedData.map((row) => ({
+//                                     userId,
+//                                     switch: switchId,
+//                                     accountId,
+//                                     uploadSessionId,
+//                                     ...row,
+//                                 }))
+//                             )
+
+//                             return res.status(200).json({
+//                                 message:
+//                                     'File uploaded and data saved to the database.',
+//                                 fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.key}`,
+
+//                                 updatedBalance: account.balanceAsPerStmt,
+//                                 totalCredit,
+//                             })
+//                         } catch (err) {
+//                             console.error('Error saving data:', err)
+//                             return res
+//                                 .status(500)
+//                                 .json({ error: 'Error saving data.' })
+//                         }
+//                     },
+//                 })
+//             } catch (parseError) {
+//                 console.error('Error parsing file:', parseError)
+//                 return res.status(500).json({ error: 'Error parsing file.' })
+//             }
+//         })
+
+//         s3FileStream.on('error', (err) => {
+//             console.error('S3 File Stream Error:', err)
+//             return res
+//                 .status(500)
+//                 .json({ error: 'Error processing file from S3.' })
+//         })
+//     } catch (err) {
+//         console.error('Error uploading file:', err)
+//         return res.status(500).json({ error: 'Internal server error.' })
+//     }
+// }
 exports.statementFile = async (req, res) => {
     try {
         const file = req.file // Uploaded file
@@ -1302,8 +1540,6 @@ exports.statementFile = async (req, res) => {
         const response = await s3.send(command)
         const s3FileStream = Readable.from(response.Body)
 
-        // File is uploaded to S3
-
         const chunks = []
         s3FileStream.on('data', (chunk) => chunks.push(chunk))
         s3FileStream.on('end', async () => {
@@ -1316,6 +1552,7 @@ exports.statementFile = async (req, res) => {
                     complete: async (results) => {
                         const jsonData = results.data // Ensure jsonData is accessible
                         const keys = Object.keys(jsonData[0])
+
                         // Mapping rows with correct fields
                         const mappedData = jsonData.map((row) => ({
                             PostDate: row[keys[0]],
@@ -1325,9 +1562,11 @@ exports.statementFile = async (req, res) => {
                             Debit: 0.0,
                             USID: row[keys[4]] || '0.00',
                         }))
+
                         try {
+                            // Ensure Credit is treated as a number
                             const totalCredit = mappedData.reduce(
-                                (sum, row) => sum + (row.Credit || 0),
+                                (sum, row) => sum + parseFloat(row.Credit || 0),
                                 0
                             )
 
