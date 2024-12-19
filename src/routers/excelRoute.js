@@ -238,6 +238,16 @@ router.get(
     dataController.getLedgerBySwitchId
 )
 router.get(
+    '/all-ledger/:switchId',
+    authenticateUser,
+    dataController.getAllLedgerBySwitchId
+)
+router.get(
+    '/all-statements/:switchId',
+    authenticateUser,
+    dataController.getAllStatementsBySwitchId
+)
+router.get(
     '/laststatement',
     authenticateUser,
     dataController.getLastStatementDate

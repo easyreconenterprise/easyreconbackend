@@ -2302,3 +2302,111 @@ exports.getLastLedgerDate = async (req, res) => {
         res.status(500).json({ message: 'Server error' })
     }
 }
+
+exports.getAllLedgerBySwitchId = async (req, res) => {
+    try {
+        const { switchId } = req.params
+        const userId = req.user.id // Assuming req.user contains the authenticated user's details
+        console.log('Received switchId:', switchId)
+        console.log('Received userId:', userId)
+
+        // Fetch all ledger items for the specific switchId and userId
+        const ledgers = await DataModel.find(
+            {
+                switch: switchId,
+                userId: userId,
+            },
+            {
+                _id: 0, // Exclude fields if necessary
+                uploadedAt: 0,
+                __v: 0,
+                userId: 0,
+            }
+        ).sort({ PostDate: -1 }) // You can change the sorting if needed
+
+        console.log('Ledger fetched:', ledgers)
+
+        if (ledgers.length === 0) {
+            return res.status(404).json({
+                error: 'No ledger items found for this switch or user',
+            })
+        }
+
+        // Compute the total count of ledger items
+        const totalLedgerCount = ledgers.length
+
+        // Optionally, compute totals for debit and credit values
+        const totalDebit = ledgers.reduce(
+            (sum, record) => sum + parseFloat(record.Debit || 0),
+            0
+        )
+        const totalCredit = ledgers.reduce(
+            (sum, record) => sum + parseFloat(record.Credit || 0),
+            0
+        )
+
+        return res.status(200).json({
+            totalLedgerCount,
+            totalDebit: totalDebit.toFixed(2),
+            totalCredit: totalCredit.toFixed(2),
+            ledgers, // Return all ledger items if needed
+        })
+    } catch (err) {
+        console.error('Error retrieving ledger:', err)
+        return res.status(500).send('Internal server error.')
+    }
+}
+exports.getAllStatementsBySwitchId = async (req, res) => {
+    try {
+        const { switchId } = req.params
+        const userId = req.user.id // Assuming req.user contains the authenticated user's details
+
+        console.log('Received switchId:', switchId)
+        console.log('Received userId:', userId)
+
+        // Fetch all statements for the specific switchId and userId
+        const statements = await StatementModel.find(
+            {
+                switch: switchId,
+                userId: userId,
+            },
+            {
+                _id: 0, // Exclude fields if necessary
+                uploadedAt: 0,
+                __v: 0,
+                userId: 0,
+            }
+        ).sort({ PostDate: -1 }) // Sort by PostDate in descending order
+
+        console.log('Statements fetched:', statements)
+
+        if (statements.length === 0) {
+            return res.status(404).json({
+                error: 'No statements found for this switch or user',
+            })
+        }
+
+        // Compute the total count of statements
+        const totalStatementCount = statements.length
+
+        // Optionally, compute totals for debit and credit values
+        const totalDebit = statements.reduce(
+            (sum, record) => sum + parseFloat(record.Debit || 0),
+            0
+        )
+        const totalCredit = statements.reduce(
+            (sum, record) => sum + parseFloat(record.Credit || 0),
+            0
+        )
+
+        return res.status(200).json({
+            totalStatementCount,
+            totalDebit: totalDebit.toFixed(2),
+            totalCredit: totalCredit.toFixed(2),
+            statements, // Return all statements if needed
+        })
+    } catch (err) {
+        console.error('Error retrieving statements:', err)
+        return res.status(500).send('Internal server error.')
+    }
+}
