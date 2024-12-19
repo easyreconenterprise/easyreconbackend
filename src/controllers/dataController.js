@@ -1029,9 +1029,8 @@ exports.uploadFile = async (req, res) => {
                             const currentBalance = parseFloat(
                                 account.balanceAsPerLedger || 0
                             )
-                            account.balanceAsPerLedger = (
+                            account.balanceAsPerLedger =
                                 currentBalance + totalDebit
-                            ).toFixed(2)
 
                             await account.save()
 
@@ -1341,9 +1340,8 @@ exports.statementFile = async (req, res) => {
                             const currentBalance = parseFloat(
                                 account.balanceAsPerStmt || 0
                             )
-                            account.balanceAsPerStmt = (
+                            account.balanceAsPerStmt =
                                 currentBalance + totalCredit
-                            ).toFixed(2)
 
                             await account.save()
 
