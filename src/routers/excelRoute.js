@@ -243,7 +243,7 @@ router.get(
     dataController.getLastStatementDate
 )
 
-router.get('/lastledger/', authenticateUser, dataController.getLastLedgerDate)
+router.get('/lastledger', authenticateUser, dataController.getLastLedgerDate)
 
 router.get(
     '/account/:accountId',
