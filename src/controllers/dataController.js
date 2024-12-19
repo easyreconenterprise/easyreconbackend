@@ -2210,6 +2210,7 @@ exports.getLastStatementDate = async (req, res) => {
     try {
         const lastStatement = await StatementModel.findOne({
             userId: req.user.id, // Get the logged-in user
+            switch: currentSwitchSessionId, // Filter by the current switch session
         })
             .sort({ uploadedAt: -1 }) // Sort by uploadedAt in descending order
             .select('uploadedAt uploadSessionId') // Select only the fields you need
@@ -2230,20 +2231,58 @@ exports.getLastStatementDate = async (req, res) => {
 }
 
 // Controller to get the last uploaded ledger date
+// exports.getLastLedgerDate = async (req, res) => {
+//     console.log('Current user ID:', req.user._id) // Log the user ID
+
+//     try {
+//         const lastLedger = await DataModel.findOne({
+//             userId: req.user.id, // Get the logged-in user
+//         })
+//             .sort({ uploadedAt: -1 }) // Sort by uploadedAt in descending order
+//             .select('uploadedAt uploadSessionId') // Select only the fields you need
+//             .lean()
+//         console.log('Last Ledger:', lastLedger) // Log the last ledger found
+
+//         if (!lastLedger) {
+//             return res.status(404).json({ message: 'No ledgers found' })
+//         }
+
+//         res.status(200).json({
+//             uploadedAt: lastLedger.uploadedAt,
+//             uploadSessionId: lastLedger.uploadSessionId,
+//         })
+//     } catch (error) {
+//         console.error('Error fetching last ledger date:', error)
+//         res.status(500).json({ message: 'Server error' })
+//     }
+// }
 exports.getLastLedgerDate = async (req, res) => {
     console.log('Current user ID:', req.user._id) // Log the user ID
 
     try {
+        // Retrieve the current switch session from the user's session
+        const currentSwitchSessionId = req.query.switchSessionId // Pass this from the frontend
+
+        if (!currentSwitchSessionId) {
+            return res
+                .status(400)
+                .json({ message: 'Switch session ID is required' })
+        }
+
         const lastLedger = await DataModel.findOne({
-            userId: req.user.id, // Get the logged-in user
+            userId: req.user.id, // Filter by user ID
+            switch: currentSwitchSessionId, // Filter by the current switch session
         })
             .sort({ uploadedAt: -1 }) // Sort by uploadedAt in descending order
             .select('uploadedAt uploadSessionId') // Select only the fields you need
             .lean()
+
         console.log('Last Ledger:', lastLedger) // Log the last ledger found
 
         if (!lastLedger) {
-            return res.status(404).json({ message: 'No ledgers found' })
+            return res
+                .status(404)
+                .json({ message: 'No ledgers found for this switch' })
         }
 
         res.status(200).json({
