@@ -1008,9 +1008,9 @@ exports.uploadFile = async (req, res) => {
                             PostDate: row[keys[0]],
                             ValDate: row[keys[1]],
                             Details: row[keys[2]],
-                            Debit: parseFloat(row[keys[3]] || 0),
+                            Debit: row[keys[3]] || '0.00',
                             Credit: 0.0,
-                            USID: parseFloat(row[keys[4]] || 0),
+                            USID: row[keys[4]] || '0.00',
                         }))
 
                         try {
@@ -1321,9 +1321,9 @@ exports.statementFile = async (req, res) => {
                             PostDate: row[keys[0]],
                             ValDate: row[keys[1]],
                             Details: row[keys[2]],
-                            Credit: parseFloat(row[keys[3]] || 0),
+                            Credit: row[keys[3]] || '0.00',
                             Debit: 0.0,
-                            USID: parseFloat(row[keys[4]] || 0),
+                            USID: row[keys[4]] || '0.00',
                         }))
                         try {
                             const totalCredit = mappedData.reduce(
