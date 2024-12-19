@@ -2208,6 +2208,14 @@ exports.createSwitch = async (req, res) => {
 // Controller to get the last uploaded statement date
 exports.getLastStatementDate = async (req, res) => {
     try {
+        const currentSwitchSessionId = req.query.switchSessionId // Pass this from the frontend
+
+        if (!currentSwitchSessionId) {
+            return res
+                .status(400)
+                .json({ message: 'Switch session ID is required' })
+        }
+
         const lastStatement = await StatementModel.findOne({
             userId: req.user.id, // Get the logged-in user
             switch: currentSwitchSessionId, // Filter by the current switch session
