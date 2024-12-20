@@ -141,3 +141,36 @@ exports.getMatchedItems = async (req, res) => {
         return res.status(500).json({ success: false, error: 'Server Error' })
     }
 }
+exports.getLastUploadedMatchedItemsForSwitch = async (req, res) => {
+    const { switchId } = req.params
+
+    try {
+        // Find the latest upload session for the given switch
+        const latestUploadSession = await MatchModel.findOne({ switchId })
+            .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+            .limit(1) // Limit to the latest document only
+
+        if (!latestUploadSession) {
+            return res.status(404).json({
+                success: false,
+                message: `No matches found for switch ${switchId}`,
+            })
+        }
+
+        const { uploadSessionId } = latestUploadSession
+
+        // Find the match document by latest uploadSessionId and switchId
+        const match = await MatchModel.findOne({ uploadSessionId, switchId })
+
+        if (!match) {
+            return res.status(404).json({
+                success: false,
+                message: `No matches found for the latest upload session of switch ${switchId}`,
+            })
+        }
+
+        return res.status(200).json({ success: true, data: match })
+    } catch (error) {
+        return res.status(500).json({ success: false, error: 'Server Error' })
+    }
+}
