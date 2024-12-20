@@ -368,7 +368,9 @@ exports.uploadFile = async (req, res) => {
                     ? row[keys[1]]
                     : convertExcelDate(row[keys[1]]),
                 Details: row[keys[2]],
-                Debit: row[keys[3]] || '0.00',
+                // Debit: row[keys[3]] || '0.00',
+                Debit: row[keys[3]] ? Math.abs(row[keys[3]]) : 0,
+
                 Credit: 0.0,
                 USID: row[keys[4]] || '0.00',
             }))
