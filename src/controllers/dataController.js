@@ -1268,9 +1268,9 @@ exports.removeUploadedFileForStatement = async (req, res) => {
                 .json({ error: 'Invalid date format for endDate.' })
         }
 
-        // Create start and end of the day range
-        const startOfDay = new Date(uploadedDate.setHours(0, 0, 0, 0))
-        const endOfDay = new Date(uploadedDate.setHours(23, 59, 59, 999))
+        // Set time range
+        const startOfDay = new Date(start.setHours(0, 0, 0, 0))
+        const endOfDay = new Date(end.setHours(23, 59, 59, 999))
 
         const switchData = await Switch.findById(switchId).populate('account')
         if (!switchData) {
