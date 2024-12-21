@@ -81,6 +81,7 @@ exports.saveMatchedItems = async (req, res) => {
             // Reset unmatchedItems to the latest ones provided in the request
             match.unmatchedItems = unmatchedItems // Resetting to the latest unmatched items
         }
+        console.log('Unmatched Items:', unmatchedItems)
 
         // Save the updated match document
         await match.save()
