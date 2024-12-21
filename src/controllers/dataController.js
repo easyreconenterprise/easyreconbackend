@@ -789,6 +789,189 @@ exports.removeUploadedFile = async (req, res) => {
 
 //for xlsx to work
 
+// exports.statementFile = async (req, res) => {
+//     try {
+//         console.log('Request received with body:', req.body)
+//         console.log('User ID:', req.user.id)
+
+//         const file = req.file // Uploaded file
+//         const userId = req.user.id // User ID
+//         const switchId = req.body.switch // Switch ID from request body
+
+//         if (!file) {
+//             console.error('No file uploaded')
+//             return res.status(400).json({ error: 'No file was uploaded.' })
+//         }
+
+//         console.log('Uploaded file:', file)
+
+//         // Fetch the switch to get the account ID
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         console.log('Switch data:', switchData)
+
+//         if (!switchData) {
+//             return res.status(404).json({ error: 'Switch not found.' })
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+//         console.log('Account ID:', accountId)
+
+//         const uploadSessionId = new mongoose.Types.ObjectId()
+
+//         const command = new GetObjectCommand({
+//             Bucket: process.env.AWS_BUCKET_NAME,
+//             Key: file.key,
+//         })
+
+//         console.log('S3 Command:', command)
+
+//         const response = await s3.send(command)
+//         console.log('S3 Response received.')
+
+//         const s3FileStream = Readable.from(response.Body)
+//         const fileData = await new Promise((resolve, reject) => {
+//             const chunks = []
+//             s3FileStream.on('data', (chunk) => chunks.push(chunk))
+//             s3FileStream.on('end', () => resolve(Buffer.concat(chunks)))
+//             s3FileStream.on('error', (err) => {
+//                 console.error('S3 File Stream Error:', err)
+//                 reject(err)
+//             })
+//         })
+
+//         console.log('File data fetched from S3. Processing...')
+
+//         let jsonData
+//         if (file.mimetype === 'text/csv') {
+//             console.log('Processing CSV file.')
+//             const csvData = fileData.toString('utf-8')
+
+//             const parseCSV = (data) => {
+//                 return new Promise((resolve, reject) => {
+//                     Papa.parse(data, {
+//                         header: true,
+//                         dynamicTyping: true,
+//                         complete: (results) => {
+//                             console.log(
+//                                 'CSV Parsing complete:',
+//                                 results.data.slice(0, 5)
+//                             )
+//                             resolve(
+//                                 results.data.filter((row) =>
+//                                     Object.values(row).some(Boolean)
+//                                 )
+//                             )
+//                         },
+//                         error: (err) => {
+//                             console.error('CSV Parsing Error:', err)
+//                             reject(err)
+//                         },
+//                     })
+//                 })
+//             }
+
+//             jsonData = await parseCSV(csvData)
+//         } else if (
+//             file.mimetype ===
+//             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+//         ) {
+//             console.log('Processing XLSX file.')
+//             const workbook = XLSX.read(fileData, { type: 'buffer' })
+//             const sheetName = workbook.SheetNames[0]
+//             console.log('Selected Sheet:', sheetName)
+//             const sheet = workbook.Sheets[sheetName]
+//             jsonData = XLSX.utils.sheet_to_json(sheet)
+//             console.log('Parsed XLSX data sample:', jsonData.slice(0, 5))
+//         } else {
+//             console.error('Unsupported file format:', file.mimetype)
+//             return res.status(400).json({ error: 'Unsupported file format.' })
+//         }
+
+//         const keys = Object.keys(jsonData[0])
+//         console.log('Keys from parsed data:', keys)
+
+//         // const mappedData = jsonData.map((row) => ({
+
+//         //  PostDate: isNaN(row[keys[0]]) ? row[keys[0]] : convertExcelDate(row[keys[0]]),
+//         // ValDate: isNaN(row[keys[1]]) ? row[keys[1]] : convertExcelDate(row[keys[1]]),
+//         //     Details: row[keys[2]],
+//         //     Credit: row[keys[3]] || '0.00',
+//         //     Debit: 0.0,
+//         //     USID: row[keys[4]] || '0.00',
+//         // }))
+
+//         const mappedData = jsonData.map((row) => {
+//             const convertExcelDate = (excelDate) => {
+//                 const date = new Date((excelDate - 25569) * 86400 * 1000) // Excel stores dates starting from 1900
+//                 return date.toLocaleDateString('en-GB', {
+//                     // Customize the format as needed
+//                     year: '2-digit',
+//                     month: 'short',
+//                     day: '2-digit',
+//                 })
+//             }
+
+//             return {
+//                 PostDate: isNaN(row[keys[0]])
+//                     ? row[keys[0]]
+//                     : convertExcelDate(row[keys[0]]),
+//                 ValDate: isNaN(row[keys[1]])
+//                     ? row[keys[1]]
+//                     : convertExcelDate(row[keys[1]]),
+//                 Details: row[keys[2]],
+//                 Credit: row[keys[3]] || '0.00',
+//                 Debit: 0.0,
+//                 USID: row[keys[4]] || '0.00',
+//             }
+//         })
+
+//         console.log('Mapped data sample:', mappedData.slice(0, 5))
+
+//         const totalCredit = mappedData.reduce(
+//             (sum, row) => sum + parseFloat(row.Credit || 0),
+//             0
+//         )
+
+//         console.log('Total Credit:', totalCredit)
+
+//         const account = await Account.findById(accountId)
+//         if (!account) {
+//             console.error('Account not found for ID:', accountId)
+//             return res.status(404).json({ error: 'Account not found.' })
+//         }
+
+//         const currentBalance = parseFloat(account.balanceAsPerStmt || 0)
+//         console.log('Current Balance:', currentBalance)
+
+//         account.balanceAsPerStmt = (currentBalance + totalCredit).toFixed(2)
+
+//         console.log('Updated Balance:', account.balanceAsPerStmt)
+//         await account.save()
+
+//         await StatementModel.insertMany(
+//             mappedData.map((row) => ({
+//                 userId,
+//                 switch: switchId,
+//                 accountId,
+//                 uploadSessionId,
+//                 ...row,
+//             }))
+//         )
+
+//         console.log('Data successfully saved to the database.')
+
+//         return res.status(200).json({
+//             message: 'File uploaded and data saved to the database.',
+//             fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.key}`,
+//             updatedBalance: account.balanceAsPerStmt,
+//             totalCredit,
+//         })
+//     } catch (err) {
+//         console.error('Error uploading file:', err)
+//         return res.status(500).json({ error: 'Internal server error.' })
+//     }
+// }
+
 exports.statementFile = async (req, res) => {
     try {
         console.log('Request received with body:', req.body)
@@ -890,40 +1073,29 @@ exports.statementFile = async (req, res) => {
         const keys = Object.keys(jsonData[0])
         console.log('Keys from parsed data:', keys)
 
-        // const mappedData = jsonData.map((row) => ({
+        // Function to convert Excel date to a readable format
+        const convertExcelDate = (excelDate) => {
+            const date = new Date((excelDate - 25569) * 86400 * 1000) // Excel stores dates starting from 1900
+            return date.toLocaleDateString('en-GB', {
+                year: '2-digit',
+                month: 'short',
+                day: '2-digit',
+            })
+        }
 
-        //  PostDate: isNaN(row[keys[0]]) ? row[keys[0]] : convertExcelDate(row[keys[0]]),
-        // ValDate: isNaN(row[keys[1]]) ? row[keys[1]] : convertExcelDate(row[keys[1]]),
-        //     Details: row[keys[2]],
-        //     Credit: row[keys[3]] || '0.00',
-        //     Debit: 0.0,
-        //     USID: row[keys[4]] || '0.00',
-        // }))
-
-        const mappedData = jsonData.map((row) => {
-            const convertExcelDate = (excelDate) => {
-                const date = new Date((excelDate - 25569) * 86400 * 1000) // Excel stores dates starting from 1900
-                return date.toLocaleDateString('en-GB', {
-                    // Customize the format as needed
-                    year: '2-digit',
-                    month: 'short',
-                    day: '2-digit',
-                })
-            }
-
-            return {
-                PostDate: isNaN(row[keys[0]])
-                    ? row[keys[0]]
-                    : convertExcelDate(row[keys[0]]),
-                ValDate: isNaN(row[keys[1]])
-                    ? row[keys[1]]
-                    : convertExcelDate(row[keys[1]]),
-                Details: row[keys[2]],
-                Credit: row[keys[3]] || '0.00',
-                Debit: 0.0,
-                USID: row[keys[4]] || '0.00',
-            }
-        })
+        // Map and process the data
+        const mappedData = jsonData.map((row) => ({
+            PostDate: isNaN(row[keys[0]])
+                ? row[keys[0]]
+                : convertExcelDate(row[keys[0]]),
+            ValDate: isNaN(row[keys[1]])
+                ? row[keys[1]]
+                : convertExcelDate(row[keys[1]]),
+            Details: row[keys[2]],
+            Credit: row[keys[3]] || '0.00',
+            Debit: 0.0,
+            USID: row[keys[4]] || '0.00',
+        }))
 
         console.log('Mapped data sample:', mappedData.slice(0, 5))
 
