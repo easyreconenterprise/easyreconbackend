@@ -842,6 +842,7 @@ exports.removeUploadedFile = async (req, res) => {
 //         console.log('File data fetched from S3. Processing...')
 
 //         let jsonData
+
 //         if (file.mimetype === 'text/csv') {
 //             console.log('Processing CSV file.')
 //             const csvData = fileData.toString('utf-8')
@@ -1025,35 +1026,41 @@ exports.statementFile = async (req, res) => {
         console.log('File data fetched from S3. Processing...')
 
         let jsonData
+        const parseCSV = (data, keys) => {
+            return new Promise((resolve, reject) => {
+                Papa.parse(data, {
+                    header: true,
+                    dynamicTyping: true, // Ensure numeric values are parsed correctly
+                    skipEmptyLines: true, // Ignore empty lines
+                    complete: (results) => {
+                        const sanitizedData = results.data.map((row) => {
+                            row[keys[3]] = parseFloat(
+                                (row[keys[3]] || '0')
+                                    .toString()
+                                    .replace(/[^0-9.-]/g, '')
+                            )
+                            return row
+                        })
+                        resolve(
+                            sanitizedData.filter((row) =>
+                                Object.values(row).some(Boolean)
+                            )
+                        )
+                    },
+                    error: (err) => reject(err),
+                })
+            })
+        }
+
         if (file.mimetype === 'text/csv') {
             console.log('Processing CSV file.')
             const csvData = fileData.toString('utf-8')
 
-            const parseCSV = (data) => {
-                return new Promise((resolve, reject) => {
-                    Papa.parse(data, {
-                        header: true,
-                        dynamicTyping: true,
-                        complete: (results) => {
-                            console.log(
-                                'CSV Parsing complete:',
-                                results.data.slice(0, 5)
-                            )
-                            resolve(
-                                results.data.filter((row) =>
-                                    Object.values(row).some(Boolean)
-                                )
-                            )
-                        },
-                        error: (err) => {
-                            console.error('CSV Parsing Error:', err)
-                            reject(err)
-                        },
-                    })
-                })
-            }
+            const initialResults = Papa.parse(csvData, { header: true })
+            const keys = Object.keys(initialResults.data[0]) // Extract keys from the header
 
-            jsonData = await parseCSV(csvData)
+            // Pass keys to parseCSV
+            jsonData = await parseCSV(csvData, keys)
         } else if (
             file.mimetype ===
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -1061,19 +1068,17 @@ exports.statementFile = async (req, res) => {
             console.log('Processing XLSX file.')
             const workbook = XLSX.read(fileData, { type: 'buffer' })
             const sheetName = workbook.SheetNames[0]
-            console.log('Selected Sheet:', sheetName)
             const sheet = workbook.Sheets[sheetName]
             jsonData = XLSX.utils.sheet_to_json(sheet)
-            console.log('Parsed XLSX data sample:', jsonData.slice(0, 5))
         } else {
             console.error('Unsupported file format:', file.mimetype)
             return res.status(400).json({ error: 'Unsupported file format.' })
         }
 
+        // Extracting keys dynamically
         const keys = Object.keys(jsonData[0])
-        console.log('Keys from parsed data:', keys)
 
-        // Function to convert Excel date to a readable format
+        // Convert Excel dates if present
         const convertExcelDate = (excelDate) => {
             const date = new Date((excelDate - 25569) * 86400 * 1000) // Excel stores dates starting from 1900
             return date.toLocaleDateString('en-GB', {
@@ -1083,7 +1088,6 @@ exports.statementFile = async (req, res) => {
             })
         }
 
-        // Map and process the data
         const mappedData = jsonData.map((row) => ({
             PostDate: isNaN(row[keys[0]])
                 ? row[keys[0]]
