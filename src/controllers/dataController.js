@@ -267,6 +267,173 @@ const s3 = new S3Client({
 
 //forxlsx to work
 
+// exports.uploadFile = async (req, res) => {
+//     try {
+//         const file = req.file // Uploaded file
+//         const userId = req.user.id // User ID
+//         const switchId = req.body.switch // Switch ID from request body
+
+//         if (!file) {
+//             return res.status(400).json({ error: 'No file was uploaded.' })
+//         }
+
+//         // Fetch the switch to get the account ID
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         if (!switchData) {
+//             return res.status(404).json({ error: 'Switch not found.' })
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+
+//         // Generate a new upload session ID
+//         const uploadSessionId = new mongoose.Types.ObjectId()
+
+//         // Fetch the file from S3
+//         const command = new GetObjectCommand({
+//             Bucket: process.env.AWS_BUCKET_NAME,
+//             Key: file.key,
+//         })
+
+//         const response = await s3.send(command) // Execute the command
+
+//         // S3 body comes as a stream, so we need to process it
+//         const s3FileStream = Readable.from(response.Body)
+
+//         const chunks = []
+//         s3FileStream.on('data', (chunk) => chunks.push(chunk))
+//         s3FileStream.on('end', async () => {
+//             const fileData = Buffer.concat(chunks)
+
+//             let jsonData = []
+
+//             // Determine file type and process accordingly
+//             if (file.mimetype === 'text/csv') {
+//                 console.log('Processing CSV file.')
+//                 const csvData = fileData.toString('utf-8')
+
+//                 const parseCSV = (data) => {
+//                     return new Promise((resolve, reject) => {
+//                         Papa.parse(data, {
+//                             header: true,
+//                             dynamicTyping: true,
+//                             complete: (results) => {
+//                                 resolve(
+//                                     results.data.filter((row) =>
+//                                         Object.values(row).some(Boolean)
+//                                     )
+//                                 )
+//                             },
+//                             error: (err) => {
+//                                 reject(err)
+//                             },
+//                         })
+//                     })
+//                 }
+
+//                 jsonData = await parseCSV(csvData)
+//             } else if (
+//                 file.mimetype ===
+//                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+//             ) {
+//                 console.log('Processing XLSX file.')
+//                 const workbook = XLSX.read(fileData, { type: 'buffer' })
+//                 const sheetName = workbook.SheetNames[0]
+//                 const sheet = workbook.Sheets[sheetName]
+//                 jsonData = XLSX.utils.sheet_to_json(sheet)
+//             } else {
+//                 console.error('Unsupported file format:', file.mimetype)
+//                 return res
+//                     .status(400)
+//                     .json({ error: 'Unsupported file format.' })
+//             }
+
+//             // Extracting keys dynamically
+//             const keys = Object.keys(jsonData[0])
+
+//             // Convert Excel dates if present
+//             const convertExcelDate = (excelDate) => {
+//                 const date = new Date((excelDate - 25569) * 86400 * 1000) // Excel stores dates starting from 1900
+//                 return date.toLocaleDateString('en-GB', {
+//                     year: '2-digit',
+//                     month: 'short',
+//                     day: '2-digit',
+//                 })
+//             }
+
+//             const mappedData = jsonData.map((row) => ({
+//                 PostDate: isNaN(row[keys[0]])
+//                     ? row[keys[0]]
+//                     : convertExcelDate(row[keys[0]]),
+//                 ValDate: isNaN(row[keys[1]])
+//                     ? row[keys[1]]
+//                     : convertExcelDate(row[keys[1]]),
+//                 Details: row[keys[2]],
+//                 // Debit: row[keys[3]] || '0.00',
+//                 // Debit: row[keys[3]] ? Math.abs(row[keys[3]]) : 0,
+//                 Debit:
+//                     row[keys[3]] && row[keys[3]].toString().includes('-')
+//                         ? Math.abs(row[keys[3]])
+//                         : row[keys[3]] || 0,
+
+//                 Credit: 0.0,
+//                 USID: row[keys[4]] || '0.00',
+//             }))
+
+//             try {
+//                 const totalDebit = mappedData.reduce(
+//                     (sum, row) => sum + parseFloat(row.Debit || 0),
+//                     0
+//                 )
+//                 console.log('Total Debit:', totalDebit, 'Total Credit:')
+
+//                 const account = await Account.findById(accountId)
+//                 if (!account) {
+//                     return res.status(404).json({ error: 'Account not found.' })
+//                 }
+
+//                 const currentBalance = parseFloat(
+//                     account.balanceAsPerLedger || 0
+//                 )
+//                 account.balanceAsPerLedger = (
+//                     currentBalance + totalDebit
+//                 ).toFixed(2)
+
+//                 await account.save()
+
+//                 await DataModel.insertMany(
+//                     mappedData.map((row) => ({
+//                         userId,
+//                         switch: switchId,
+//                         accountId,
+//                         uploadSessionId,
+//                         ...row,
+//                     }))
+//                 )
+
+//                 return res.status(200).json({
+//                     message: 'File uploaded and data saved to the database.',
+//                     fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.key}`,
+//                     updatedBalance: account.balanceAsPerLedger,
+//                     totalDebit,
+//                 })
+//             } catch (err) {
+//                 console.error('Error saving data:', err)
+//                 return res.status(500).json({ error: 'Error saving data.' })
+//             }
+//         })
+
+//         s3FileStream.on('error', (err) => {
+//             console.error('S3 File Stream Error:', err)
+//             return res
+//                 .status(500)
+//                 .json({ error: 'Error processing file from S3.' })
+//         })
+//     } catch (err) {
+//         console.error('Error uploading file:', err)
+//         return res.status(500).json({ error: 'Internal server error.' })
+//     }
+// }
+
 exports.uploadFile = async (req, res) => {
     try {
         const file = req.file // Uploaded file
@@ -306,31 +473,44 @@ exports.uploadFile = async (req, res) => {
 
             let jsonData = []
 
+            // Define the CSV parsing function
+            const parseCSV = (data, keys) => {
+                return new Promise((resolve, reject) => {
+                    Papa.parse(data, {
+                        header: true,
+                        dynamicTyping: true, // Ensure numeric values are parsed correctly
+                        skipEmptyLines: true, // Ignore empty lines
+                        complete: (results) => {
+                            const sanitizedData = results.data.map((row) => {
+                                row[keys[3]] = parseFloat(
+                                    (row[keys[3]] || '0')
+                                        .toString()
+                                        .replace(/[^0-9.-]/g, '')
+                                )
+                                return row
+                            })
+                            resolve(
+                                sanitizedData.filter((row) =>
+                                    Object.values(row).some(Boolean)
+                                )
+                            )
+                        },
+                        error: (err) => reject(err),
+                    })
+                })
+            }
+
             // Determine file type and process accordingly
             if (file.mimetype === 'text/csv') {
                 console.log('Processing CSV file.')
                 const csvData = fileData.toString('utf-8')
 
-                const parseCSV = (data) => {
-                    return new Promise((resolve, reject) => {
-                        Papa.parse(data, {
-                            header: true,
-                            dynamicTyping: true,
-                            complete: (results) => {
-                                resolve(
-                                    results.data.filter((row) =>
-                                        Object.values(row).some(Boolean)
-                                    )
-                                )
-                            },
-                            error: (err) => {
-                                reject(err)
-                            },
-                        })
-                    })
-                }
+                // Parse the data once to extract keys
+                const initialResults = Papa.parse(csvData, { header: true })
+                const keys = Object.keys(initialResults.data[0]) // Extract keys from the header
 
-                jsonData = await parseCSV(csvData)
+                // Pass keys to parseCSV
+                jsonData = await parseCSV(csvData, keys)
             } else if (
                 file.mimetype ===
                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -368,8 +548,6 @@ exports.uploadFile = async (req, res) => {
                     ? row[keys[1]]
                     : convertExcelDate(row[keys[1]]),
                 Details: row[keys[2]],
-                // Debit: row[keys[3]] || '0.00',
-                // Debit: row[keys[3]] ? Math.abs(row[keys[3]]) : 0,
                 Debit:
                     row[keys[3]] && row[keys[3]].toString().includes('-')
                         ? Math.abs(row[keys[3]])
@@ -383,6 +561,7 @@ exports.uploadFile = async (req, res) => {
                     (sum, row) => sum + parseFloat(row.Debit || 0),
                     0
                 )
+                console.log('Total Debit:', totalDebit, 'Total Credit:')
 
                 const account = await Account.findById(accountId)
                 if (!account) {
@@ -428,6 +607,64 @@ exports.uploadFile = async (req, res) => {
         })
     } catch (err) {
         console.error('Error uploading file:', err)
+        return res.status(500).json({ error: 'Internal server error.' })
+    }
+}
+
+exports.removeUploadedFile = async (req, res) => {
+    try {
+        const { switchId, uploadedAt } = req.body
+
+        // Validate input
+        if (!switchId || !uploadedAt) {
+            return res
+                .status(400)
+                .json({ error: 'Switch ID and Uploaded Date are required.' })
+        }
+
+        // Find the switch
+        const switchData = await Switch.findById(switchId).populate('account')
+        if (!switchData) {
+            return res.status(404).json({ error: 'Switch not found.' })
+        }
+
+        const accountId = switchData.account._id // Get the account ID from the switch
+
+        // Find the uploaded file record
+        const uploadedFile = await DataModel.findOne({
+            switch: switchId,
+            uploadedAt: new Date(uploadedAt),
+        })
+
+        if (!uploadedFile) {
+            return res
+                .status(404)
+                .json({ error: 'Uploaded file not found for the given date.' })
+        }
+
+        // Calculate the total debit to be reversed
+        const totalDebit = parseFloat(uploadedFile.Debit || 0)
+
+        // Find and update the account balance
+        const account = await Account.findById(accountId)
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found.' })
+        }
+
+        const currentBalance = parseFloat(account.balanceAsPerLedger || 0)
+        account.balanceAsPerLedger = (currentBalance - totalDebit).toFixed(2) // Reverse the debit
+
+        await account.save()
+
+        // Delete the uploaded file record
+        await DataModel.deleteOne({ _id: uploadedFile._id })
+
+        return res.status(200).json({
+            message: 'File removed and account balance updated successfully.',
+            updatedBalance: account.balanceAsPerLedger,
+        })
+    } catch (err) {
+        console.error('Error removing uploaded file:', err)
         return res.status(500).json({ error: 'Internal server error.' })
     }
 }

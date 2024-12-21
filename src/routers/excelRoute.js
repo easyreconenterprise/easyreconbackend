@@ -180,6 +180,11 @@ router.post(
     upload.single('csvFile'),
     dataController.uploadFile
 )
+router.post(
+    '/remove-uploaded-file',
+    authenticateUser, // Ensure authentication middleware is applied
+    dataController.removeUploadedFile
+)
 
 router.post(
     '/upload/statement',
