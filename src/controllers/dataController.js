@@ -729,11 +729,9 @@ exports.removeUploadedFile = async (req, res) => {
         })
 
         if (!uploadedFiles || uploadedFiles.length === 0) {
-            return res
-                .status(404)
-                .json({
-                    error: 'No uploaded files found for the given date range.',
-                })
+            return res.status(404).json({
+                error: 'No uploaded files found for the given date range.',
+            })
         }
 
         // Calculate the total debit to be reversed
@@ -1246,21 +1244,28 @@ exports.statementFile = async (req, res) => {
 }
 exports.removeUploadedFileForStatement = async (req, res) => {
     try {
-        const { switchId, uploadedAt } = req.body
+        const { switchId, startDate, endDate } = req.body
 
         // Validate input
-        if (!switchId || !uploadedAt) {
+        if (!switchId || !startDate) {
             return res
                 .status(400)
                 .json({ error: 'Switch ID and Uploaded Date are required.' })
         }
 
         // Parse the uploadedAt date string
-        const uploadedDate = new Date(uploadedAt)
-        if (isNaN(uploadedDate.getTime())) {
+        const start = new Date(startDate)
+        if (isNaN(start.getTime())) {
             return res
                 .status(400)
-                .json({ error: 'Invalid date format for uploadedAt.' })
+                .json({ error: 'Invalid date format for startDate.' })
+        }
+
+        const end = endDate ? new Date(endDate) : start
+        if (isNaN(end.getTime())) {
+            return res
+                .status(400)
+                .json({ error: 'Invalid date format for endDate.' })
         }
 
         // Create start and end of the day range
