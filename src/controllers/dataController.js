@@ -622,6 +622,18 @@ exports.removeUploadedFile = async (req, res) => {
                 .json({ error: 'Switch ID and Uploaded Date are required.' })
         }
 
+        // Parse the uploadedAt date string
+        const uploadedDate = new Date(uploadedAt)
+        if (isNaN(uploadedDate.getTime())) {
+            return res
+                .status(400)
+                .json({ error: 'Invalid date format for uploadedAt.' })
+        }
+
+        // Create start and end of the day range
+        const startOfDay = new Date(uploadedDate.setHours(0, 0, 0, 0))
+        const endOfDay = new Date(uploadedDate.setHours(23, 59, 59, 999))
+
         // Find the switch
         const switchData = await Switch.findById(switchId).populate('account')
         if (!switchData) {
@@ -630,20 +642,22 @@ exports.removeUploadedFile = async (req, res) => {
 
         const accountId = switchData.account._id // Get the account ID from the switch
 
-        // Find the uploaded file record
-        const uploadedFile = await DataModel.findOne({
+        // Find all uploaded file records within the date range
+        const uploadedFiles = await DataModel.find({
             switch: switchId,
-            uploadedAt: new Date(uploadedAt),
+            uploadedAt: { $gte: startOfDay, $lte: endOfDay },
         })
 
-        if (!uploadedFile) {
+        if (!uploadedFiles || uploadedFiles.length === 0) {
             return res
                 .status(404)
-                .json({ error: 'Uploaded file not found for the given date.' })
+                .json({ error: 'No uploaded files found for the given date.' })
         }
 
         // Calculate the total debit to be reversed
-        const totalDebit = parseFloat(uploadedFile.Debit || 0)
+        const totalDebit = uploadedFiles.reduce((sum, file) => {
+            return sum + parseFloat(file.Debit || 0)
+        }, 0)
 
         // Find and update the account balance
         const account = await Account.findById(accountId)
@@ -652,19 +666,20 @@ exports.removeUploadedFile = async (req, res) => {
         }
 
         const currentBalance = parseFloat(account.balanceAsPerLedger || 0)
-        account.balanceAsPerLedger = (currentBalance - totalDebit).toFixed(2) // Reverse the debit
+        account.balanceAsPerLedger = (currentBalance - totalDebit).toFixed(2) // Reverse the total debit
 
         await account.save()
 
-        // Delete the uploaded file record
-        await DataModel.deleteOne({ _id: uploadedFile._id })
+        // Delete all uploaded file records
+        const fileIds = uploadedFiles.map((file) => file._id)
+        await DataModel.deleteMany({ _id: { $in: fileIds } })
 
         return res.status(200).json({
-            message: 'File removed and account balance updated successfully.',
+            message: 'Files removed and account balance updated successfully.',
             updatedBalance: account.balanceAsPerLedger,
         })
     } catch (err) {
-        console.error('Error removing uploaded file:', err)
+        console.error('Error removing uploaded files:', err)
         return res.status(500).json({ error: 'Internal server error.' })
     }
 }
@@ -1144,6 +1159,86 @@ exports.statementFile = async (req, res) => {
         })
     } catch (err) {
         console.error('Error uploading file:', err)
+        return res.status(500).json({ error: 'Internal server error.' })
+    }
+}
+exports.removeUploadedFileForStatement = async (req, res) => {
+    try {
+        const { switchId, uploadedAt } = req.body
+
+        // Validate input
+        if (!switchId || !uploadedAt) {
+            return res
+                .status(400)
+                .json({ error: 'Switch ID and Uploaded Date are required.' })
+        }
+
+        // Parse the uploadedAt date string
+        const uploadedDate = new Date(uploadedAt)
+        if (isNaN(uploadedDate.getTime())) {
+            return res
+                .status(400)
+                .json({ error: 'Invalid date format for uploadedAt.' })
+        }
+
+        // Create start and end of the day range
+        const startOfDay = new Date(uploadedDate.setHours(0, 0, 0, 0))
+        const endOfDay = new Date(uploadedDate.setHours(23, 59, 59, 999))
+
+        const switchData = await Switch.findById(switchId).populate('account')
+        if (!switchData) {
+            return res.status(404).json({ error: 'Switch not found.' })
+        }
+
+        const accountId = switchData.account._id // Get the account ID from the switch
+
+        // Fetch the uploaded statements using the switch ID and date range
+        const uploadedFiles = await StatementModel.find({
+            switch: switchId,
+            uploadedAt: { $gte: startOfDay, $lte: endOfDay },
+        })
+
+        if (!uploadedFiles || uploadedFiles.length === 0) {
+            return res
+                .status(404)
+                .json({ error: 'No uploaded files found for the given date.' })
+        }
+
+        const totalCredit = uploadedFiles.reduce(
+            (sum, statement) => sum + parseFloat(statement.Credit || 0),
+            0
+        )
+
+        console.log('Total credit to reverse:', totalCredit)
+
+        // Fetch the account and update the balance
+        const account = await Account.findById(accountId)
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found.' })
+        }
+
+        console.log('Current account balance:', account.balanceAsPerStmt)
+
+        const currentBalance = parseFloat(account.balanceAsPerStmt || 0)
+        const updatedBalance = (currentBalance - totalCredit).toFixed(2) // Reverse the total credit
+        account.balanceAsPerStmt = updatedBalance
+
+        console.log('Updated account balance:', updatedBalance)
+
+        // Save the updated account balance
+        await account.save()
+
+        // Remove the statements associated with the switch ID and date range
+        const fileIds = uploadedFiles.map((file) => file._id)
+        await StatementModel.deleteMany({ _id: { $in: fileIds } })
+
+        return res.status(200).json({
+            message: 'Statements removed successfully and balance updated.',
+            updatedBalance,
+            balanceAsPerStmt: account.balanceAsPerStmt,
+        })
+    } catch (err) {
+        console.error('Error removing uploaded statements:', err)
         return res.status(500).json({ error: 'Internal server error.' })
     }
 }

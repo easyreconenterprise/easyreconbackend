@@ -185,6 +185,11 @@ router.post(
     authenticateUser, // Ensure authentication middleware is applied
     dataController.removeUploadedFile
 )
+router.post(
+    '/remove-uploaded-file-stmt',
+    authenticateUser, // Ensure authentication middleware is applied
+    dataController.removeUploadedFileForStatement
+)
 
 router.post(
     '/upload/statement',
