@@ -611,28 +611,108 @@ exports.uploadFile = async (req, res) => {
     }
 }
 
+// exports.removeUploadedFile = async (req, res) => {
+//     try {
+//         const { switchId, uploadedAt } = req.body
+
+//         // Validate input
+//         if (!switchId || !uploadedAt) {
+//             return res
+//                 .status(400)
+//                 .json({ error: 'Switch ID and Uploaded Date are required.' })
+//         }
+
+//         // Parse the uploadedAt date string
+//         const uploadedDate = new Date(uploadedAt)
+//         if (isNaN(uploadedDate.getTime())) {
+//             return res
+//                 .status(400)
+//                 .json({ error: 'Invalid date format for uploadedAt.' })
+//         }
+
+//         // Create start and end of the day range
+//         const startOfDay = new Date(uploadedDate.setHours(0, 0, 0, 0))
+//         const endOfDay = new Date(uploadedDate.setHours(23, 59, 59, 999))
+
+//         // Find the switch
+//         const switchData = await Switch.findById(switchId).populate('account')
+//         if (!switchData) {
+//             return res.status(404).json({ error: 'Switch not found.' })
+//         }
+
+//         const accountId = switchData.account._id // Get the account ID from the switch
+
+//         // Find all uploaded file records within the date range
+//         const uploadedFiles = await DataModel.find({
+//             switch: switchId,
+//             uploadedAt: { $gte: startOfDay, $lte: endOfDay },
+//         })
+
+//         if (!uploadedFiles || uploadedFiles.length === 0) {
+//             return res
+//                 .status(404)
+//                 .json({ error: 'No uploaded files found for the given date.' })
+//         }
+
+//         // Calculate the total debit to be reversed
+//         const totalDebit = uploadedFiles.reduce((sum, file) => {
+//             return sum + parseFloat(file.Debit || 0)
+//         }, 0)
+
+//         // Find and update the account balance
+//         const account = await Account.findById(accountId)
+//         if (!account) {
+//             return res.status(404).json({ error: 'Account not found.' })
+//         }
+
+//         const currentBalance = parseFloat(account.balanceAsPerLedger || 0)
+//         account.balanceAsPerLedger = (currentBalance - totalDebit).toFixed(2) // Reverse the total debit
+
+//         await account.save()
+
+//         // Delete all uploaded file records
+//         const fileIds = uploadedFiles.map((file) => file._id)
+//         await DataModel.deleteMany({ _id: { $in: fileIds } })
+
+//         return res.status(200).json({
+//             message: 'Files removed and account balance updated successfully.',
+//             updatedBalance: account.balanceAsPerLedger,
+//         })
+//     } catch (err) {
+//         console.error('Error removing uploaded files:', err)
+//         return res.status(500).json({ error: 'Internal server error.' })
+//     }
+// }
+
 exports.removeUploadedFile = async (req, res) => {
     try {
-        const { switchId, uploadedAt } = req.body
+        const { switchId, startDate, endDate } = req.body
 
         // Validate input
-        if (!switchId || !uploadedAt) {
+        if (!switchId || !startDate) {
             return res
                 .status(400)
-                .json({ error: 'Switch ID and Uploaded Date are required.' })
+                .json({ error: 'Switch ID and Start Date are required.' })
         }
 
-        // Parse the uploadedAt date string
-        const uploadedDate = new Date(uploadedAt)
-        if (isNaN(uploadedDate.getTime())) {
+        // Parse date strings
+        const start = new Date(startDate)
+        if (isNaN(start.getTime())) {
             return res
                 .status(400)
-                .json({ error: 'Invalid date format for uploadedAt.' })
+                .json({ error: 'Invalid date format for startDate.' })
         }
 
-        // Create start and end of the day range
-        const startOfDay = new Date(uploadedDate.setHours(0, 0, 0, 0))
-        const endOfDay = new Date(uploadedDate.setHours(23, 59, 59, 999))
+        const end = endDate ? new Date(endDate) : start
+        if (isNaN(end.getTime())) {
+            return res
+                .status(400)
+                .json({ error: 'Invalid date format for endDate.' })
+        }
+
+        // Set time range
+        const startOfDay = new Date(start.setHours(0, 0, 0, 0))
+        const endOfDay = new Date(end.setHours(23, 59, 59, 999))
 
         // Find the switch
         const switchData = await Switch.findById(switchId).populate('account')
@@ -640,7 +720,7 @@ exports.removeUploadedFile = async (req, res) => {
             return res.status(404).json({ error: 'Switch not found.' })
         }
 
-        const accountId = switchData.account._id // Get the account ID from the switch
+        const accountId = switchData.account._id
 
         // Find all uploaded file records within the date range
         const uploadedFiles = await DataModel.find({
@@ -651,7 +731,9 @@ exports.removeUploadedFile = async (req, res) => {
         if (!uploadedFiles || uploadedFiles.length === 0) {
             return res
                 .status(404)
-                .json({ error: 'No uploaded files found for the given date.' })
+                .json({
+                    error: 'No uploaded files found for the given date range.',
+                })
         }
 
         // Calculate the total debit to be reversed
@@ -659,18 +741,18 @@ exports.removeUploadedFile = async (req, res) => {
             return sum + parseFloat(file.Debit || 0)
         }, 0)
 
-        // Find and update the account balance
+        // Update the account balance
         const account = await Account.findById(accountId)
         if (!account) {
             return res.status(404).json({ error: 'Account not found.' })
         }
 
         const currentBalance = parseFloat(account.balanceAsPerLedger || 0)
-        account.balanceAsPerLedger = (currentBalance - totalDebit).toFixed(2) // Reverse the total debit
+        account.balanceAsPerLedger = (currentBalance - totalDebit).toFixed(2)
 
         await account.save()
 
-        // Delete all uploaded file records
+        // Delete the uploaded files
         const fileIds = uploadedFiles.map((file) => file._id)
         await DataModel.deleteMany({ _id: { $in: fileIds } })
 
