@@ -3,6 +3,7 @@ const {
     saveMatchedItems,
     getMatchedItems,
     getLastUploadedMatchedItemsForSwitch,
+    getLastUploadedUnmatchedItemsForSwitch,
 } = require('../controllers/matchController')
 
 const router = express.Router()
@@ -15,6 +16,11 @@ router.get('/matches/:switchId', getMatchedItems)
 router.get(
     '/matches/last-uploaded/:switchId',
     getLastUploadedMatchedItemsForSwitch
+)
+
+router.get(
+    '/unmatched/last-uploaded/:switchId',
+    getLastUploadedUnmatchedItemsForSwitch
 )
 
 module.exports = router

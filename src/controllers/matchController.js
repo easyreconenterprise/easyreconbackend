@@ -175,3 +175,41 @@ exports.getLastUploadedMatchedItemsForSwitch = async (req, res) => {
         return res.status(500).json({ success: false, error: 'Server Error' })
     }
 }
+// Controller function
+exports.getLastUploadedUnmatchedItemsForSwitch = async (req, res) => {
+    const { switchId } = req.params
+
+    try {
+        // Find the latest upload session for the given switchId
+        const latestUploadSession = await MatchModel.findOne({ switchId })
+            .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+            .limit(1) // Get the most recent document
+
+        if (!latestUploadSession) {
+            return res.status(404).json({
+                success: false,
+                message: `No unmatched items found for switch ${switchId}`,
+            })
+        }
+
+        const { unmatchedItems } = latestUploadSession
+
+        // Check if unmatchedItems exist
+        if (!unmatchedItems || unmatchedItems.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: `No unmatched items found for the latest upload session of switch ${switchId}`,
+            })
+        }
+
+        // Return the unmatchedItems
+        return res.status(200).json({ success: true, data: unmatchedItems })
+    } catch (error) {
+        console.error('Error fetching unmatched items:', error)
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message,
+        })
+    }
+}
