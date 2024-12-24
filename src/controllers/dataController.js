@@ -2161,12 +2161,35 @@ exports.getAccountsByAffiliateAndDomain = async (req, res) => {
         })
 
         if (accounts.length === 0) {
-            return res
-                .status(404)
-                .json({
-                    message:
-                        'No accounts found for the specified affiliate and domain',
-                })
+            return res.status(404).json({
+                message:
+                    'No accounts found for the specified affiliate and domain',
+            })
+        }
+
+        res.status(200).json(accounts)
+    } catch (error) {
+        console.error('Error fetching accounts:', error)
+        res.status(500).json({ error: 'Error fetching accounts' })
+    }
+}
+exports.getDomainByAffiliate = async (req, res) => {
+    try {
+        const { affiliateId } = req.query // Assuming affiliateId and domainId are passed as query parameters
+
+        if (!affiliateId) {
+            return res.status(400).json({ error: 'Affiliate ID is required' })
+        }
+
+        // Find accounts associated with the affiliate and domain
+        const accounts = await Domain.find({
+            affiliate: affiliateId,
+        })
+
+        if (accounts.length === 0) {
+            return res.status(404).json({
+                message: 'No accounts found for the specified affiliate',
+            })
         }
 
         res.status(200).json(accounts)

@@ -218,6 +218,7 @@ router.get(
     authenticateUser,
     dataController.getAccountsByAffiliateAndDomain
 )
+router.get('/all-domain', authenticateUser, dataController.getDomainByAffiliate)
 
 router.get(
     '/check-data-exists',
