@@ -213,6 +213,11 @@ router.post('/affiliate', authenticateUser, dataController.createAffiliate)
 router.post('/domain', authenticateUser, dataController.createDomain)
 router.post('/account', authenticateUser, dataController.createAccount)
 router.post('/switch', authenticateUser, dataController.createSwitch)
+router.get(
+    '/accounts',
+    authenticateUser,
+    dataController.getAccountsByAffiliateAndDomain
+)
 
 router.get(
     '/check-data-exists',

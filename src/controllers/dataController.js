@@ -2144,6 +2144,37 @@ exports.createSwitch = async (req, res) => {
     }
 }
 
+exports.getAccountsByAffiliateAndDomain = async (req, res) => {
+    try {
+        const { affiliateId, domainId } = req.query // Assuming affiliateId and domainId are passed as query parameters
+
+        if (!affiliateId || !domainId) {
+            return res
+                .status(400)
+                .json({ error: 'Affiliate ID and Domain ID are required' })
+        }
+
+        // Find accounts associated with the affiliate and domain
+        const accounts = await Account.find({
+            affiliate: affiliateId,
+            domain: domainId,
+        })
+
+        if (accounts.length === 0) {
+            return res
+                .status(404)
+                .json({
+                    message:
+                        'No accounts found for the specified affiliate and domain',
+                })
+        }
+
+        res.status(200).json(accounts)
+    } catch (error) {
+        console.error('Error fetching accounts:', error)
+        res.status(500).json({ error: 'Error fetching accounts' })
+    }
+}
 // Controller to get the last uploaded statement date
 exports.getLastStatementDate = async (req, res) => {
     try {
