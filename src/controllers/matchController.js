@@ -283,3 +283,93 @@ exports.getTotalMatchedStatements = async (req, res) => {
         })
     }
 }
+
+exports.getTotalUnmatchedLedgerItems = async (req, res) => {
+    const { switchId } = req.params
+
+    try {
+        // Query to filter unmatchedItems by type 'ledger' and the given switchId
+        const result = await MatchModel.aggregate([
+            { $match: { switchId: mongoose.Types.ObjectId(switchId) } },
+            {
+                $project: {
+                    unmatchedItems: {
+                        $filter: {
+                            input: '$unmatchedItems',
+                            as: 'item',
+                            cond: { $eq: ['$$item.type', 'ledger'] },
+                        },
+                    },
+                },
+            },
+            {
+                $addFields: {
+                    totalUnmatched: { $size: '$unmatchedItems' },
+                },
+            },
+        ])
+
+        // Extract totalUnmatched or default to 0
+        const totalUnmatched = result.length > 0 ? result[0].totalUnmatched : 0
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accountInfo: 'Total Unmatched Items(Ledger)',
+                count: totalUnmatched,
+            },
+        })
+    } catch (error) {
+        console.error('Error fetching total unmatched ledger items:', error)
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message,
+        })
+    }
+}
+
+exports.getTotalUnmatchedStatementItems = async (req, res) => {
+    const { switchId } = req.params
+
+    try {
+        // Query to filter unmatchedItems by type 'statement' and the given switchId
+        const result = await MatchModel.aggregate([
+            { $match: { switchId: mongoose.Types.ObjectId(switchId) } },
+            {
+                $project: {
+                    unmatchedItems: {
+                        $filter: {
+                            input: '$unmatchedItems',
+                            as: 'item',
+                            cond: { $eq: ['$$item.type', 'statement'] },
+                        },
+                    },
+                },
+            },
+            {
+                $addFields: {
+                    totalUnmatched: { $size: '$unmatchedItems' },
+                },
+            },
+        ])
+
+        // Extract totalUnmatched or default to 0
+        const totalUnmatched = result.length > 0 ? result[0].totalUnmatched : 0
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accountInfo: 'Total Unmatched Items(Statement)',
+                count: totalUnmatched,
+            },
+        })
+    } catch (error) {
+        console.error('Error fetching total unmatched statement items:', error)
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message,
+        })
+    }
+}

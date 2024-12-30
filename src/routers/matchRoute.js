@@ -6,6 +6,8 @@ const {
     getLastUploadedUnmatchedItemsForSwitch,
     getTotalMatchedLedgerItems,
     getTotalMatchedStatements,
+    getTotalUnmatchedLedgerItems,
+    getTotalUnmatchedStatementItems,
 } = require('../controllers/matchController')
 const authenticateUser = require('../middlewares/authenticateUser')
 
@@ -39,4 +41,15 @@ router.get(
     getTotalMatchedStatements
 )
 
+router.get(
+    '/matches/total-unmatched-ledger/:switchId',
+    authenticateUser,
+    getTotalUnmatchedLedgerItems
+)
+
+router.get(
+    '/matches/total-unmatched-statement/:switchId',
+    authenticateUser,
+    getTotalUnmatchedStatementItems
+)
 module.exports = router
