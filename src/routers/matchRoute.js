@@ -4,6 +4,8 @@ const {
     getMatchedItems,
     getLastUploadedMatchedItemsForSwitch,
     getLastUploadedUnmatchedItemsForSwitch,
+    getTotalMatchedLedgerItems,
+    getTotalMatchedStatements,
 } = require('../controllers/matchController')
 const authenticateUser = require('../middlewares/authenticateUser')
 
@@ -24,6 +26,17 @@ router.get(
     '/unmatched/last-uploaded/:switchId',
     authenticateUser,
     getLastUploadedUnmatchedItemsForSwitch
+)
+router.get(
+    '/matches/total-matched-ledger/:switchId',
+    authenticateUser,
+    getTotalMatchedLedgerItems
+)
+
+router.get(
+    '/matches/total-matched-statements/:switchId',
+    authenticateUser,
+    getTotalMatchedStatements
 )
 
 module.exports = router

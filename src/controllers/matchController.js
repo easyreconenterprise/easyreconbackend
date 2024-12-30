@@ -1,5 +1,5 @@
 const MatchModel = require('../models/MatchModel')
-
+const mongoose = require('mongoose')
 exports.saveMatchedItems = async (req, res) => {
     const {
         accountId,
@@ -206,6 +206,76 @@ exports.getLastUploadedUnmatchedItemsForSwitch = async (req, res) => {
         return res.status(200).json({ success: true, data: unmatchedItems })
     } catch (error) {
         console.error('Error fetching unmatched items:', error)
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message,
+        })
+    }
+}
+
+exports.getTotalMatchedLedgerItems = async (req, res) => {
+    const { switchId } = req.params
+
+    try {
+        // Aggregate to sum up the total exactMatches count for the given switchId
+        const result = await MatchModel.aggregate([
+            { $match: { switchId: mongoose.Types.ObjectId(switchId) } },
+            {
+                $group: {
+                    _id: null,
+                    totalMatched: { $sum: { $size: '$exactMatches' } },
+                },
+            },
+        ])
+
+        // Extract totalMatched or default to 0
+        const totalMatched = result.length > 0 ? result[0].totalMatched : 0
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accountInfo: 'Total Record Matched(Ledger)',
+                count: totalMatched,
+            },
+        })
+    } catch (error) {
+        console.error('Error fetching total matched ledger items:', error)
+        return res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message,
+        })
+    }
+}
+
+exports.getTotalMatchedStatements = async (req, res) => {
+    const { switchId } = req.params
+
+    try {
+        // Aggregate to sum up the total matchedStatements count for the given switchId
+        const result = await MatchModel.aggregate([
+            { $match: { switchId: mongoose.Types.ObjectId(switchId) } },
+            {
+                $group: {
+                    _id: null,
+                    totalMatched: { $sum: { $size: '$matchedStatements' } }, // Adjust field name
+                },
+            },
+        ])
+
+        // Extract totalMatched or default to 0
+        const totalMatched = result.length > 0 ? result[0].totalMatched : 0
+
+        return res.status(200).json({
+            success: true,
+            data: {
+                accountInfo: 'Total Record Matched(Statements)',
+                count: totalMatched,
+            },
+        })
+    } catch (error) {
+        console.error('Error fetching total matched statements:', error)
         return res.status(500).json({
             success: false,
             message: 'Server Error',
