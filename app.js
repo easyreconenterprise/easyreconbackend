@@ -22,19 +22,35 @@ console.log('new AWS Secret Key:', process.env.AWS_SECRET_ACCESS_KEY)
 console.log('new AWS Region:', process.env.AWS_REGION)
 console.log('new AWS Bucket Name:', process.env.AWS_BUCKET_NAME)
 
+// mongoose
+//     .connect(process.env.DB_URL, {
+//         useNewUrlParser: true,
+//         useUnifiedTopology: true,
+
+//         connectTimeoutMS: 15000,
+//         serverSelectionTimeoutMS: 30000,
+//         socketTimeoutMS: 120000,
+
+//         // bufferTimeoutMS: 30000,
+//     })
+//     .then(() => console.log('DB connected'))
+//     .catch((err) => console.log(err))
+
 mongoose
     .connect(process.env.DB_URL, {
-        useNewUrlParser: true,
-        useUnifiedTopology: true,
+        useNewUrlParser: true, // Parse the connection string correctly
+        useUnifiedTopology: true, // Use the new topology engine to avoid warnings
 
-        connectTimeoutMS: 15000,
-        serverSelectionTimeoutMS: 30000,
-        socketTimeoutMS: 120000,
+        connectTimeoutMS: 15000, // Timeout for initial connection (in ms)
+        serverSelectionTimeoutMS: 30000, // Timeout for finding a server (in ms)
+        socketTimeoutMS: 120000, // Timeout for socket inactivity (in ms)
 
-        // bufferTimeoutMS: 30000,
+        // bufferMaxEntries: 0, // Optional: Prevents Mongoose from buffering queries when disconnected
     })
-    .then(() => console.log('DB connected'))
-    .catch((err) => console.log(err))
+    .then(() => console.log('DB connected successfully'))
+    .catch((err) => {
+        console.error('DB connection error:', err)
+    })
 
 const corsOptions = {
     origin: ['https://easyrecon.vercel.app', 'http://localhost:3000'], // specify your client's URL
