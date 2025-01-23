@@ -1,5 +1,6 @@
 const express = require('express')
 const authRoute = require('./src/routers/authRoute')
+const userAccess = require('./src/routers/userAccess')
 const { S3 } = require('@aws-sdk/client-s3')
 const excelRoute = require('./src/routers/excelRoute')
 const matchRoute = require('./src/routers/matchRoute')
@@ -53,7 +54,7 @@ mongoose
     })
 
 const corsOptions = {
-    origin: ['https://easyrecon.vercel.app', 'http://localhost:3000'], // specify your client's URL
+    origin: ['https://easyrecon.vercel.app', 'http://localhost:3001'], // specify your client's URL
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }
@@ -61,6 +62,7 @@ const corsOptions = {
 app.use(cors(corsOptions)) // Use this line to apply your CORS settings
 
 app.use('/api/auth', authRoute)
+app.use('/api/', userAccess)
 app.use('/api/', excelRoute)
 app.use('/api/', matchRoute)
 app.use('/api/', ruleRoute)

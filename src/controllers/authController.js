@@ -1,13 +1,17 @@
 // const { AuthService, getUserByEmail } = require('../services/auth')
-const { StatusCodes } = require('http-status-codes')
+const bcrypt = require('bcryptjs')
 //const { createToken } = require('../../utils/helper')
 const User = require('../models/User')
 const catchAsync = require('../errors/catchAsync')
-const bcrypt = require('bcryptjs')
+
 const jwt = require('jsonwebtoken')
 const nodemailer = require('nodemailer')
 const { Request } = require('express')
 const crypto = require('crypto')
+
+const UserAccess = require('../models/UserAccess')
+const Account = require('../models/accountModel')
+const { sendWelcomeEmail } = require('../utils/email')
 
 const keysecret = process.env.SECRET_KEY
 
@@ -111,40 +115,6 @@ const getProfile = async (req, res) => {
         res.status(500).json({ message: 'Server error' })
     }
 }
-
-// const login = async (req, res, next) => {
-//     const { email, password } = req.body
-
-//     try {
-//         if (!email || !password) {
-//             throw new AppError(
-//                 'Please provide email and password',
-//                 StatusCodes.BAD_REQUEST
-//             )
-//         }
-
-//         const user = await userModel.findOne({ email }).select('+password')
-//         console.log(user)
-
-//         if (!user || !(await user.correctPassword(password, user.password))) {
-//             throw new AppError(
-//                 'Incorrect Email or Password',
-//                 StatusCodes.UNAUTHORIZED
-//             )
-//         }
-
-//         //const token = createToken(user.id)
-
-//         return res.status(StatusCodes.OK).json({
-//             message: 'Login Successful',
-//             status: true,
-//             //token: token,
-//         })
-//     } catch (err) {
-//         next(err)
-//     }
-// }
-// Example usage
 
 const forgotPassword = (req, res) => {
     sendEmail(req.body)
@@ -319,4 +289,143 @@ const forgotPassword = (req, res) => {
 //     }
 // }
 
-module.exports = { signUp, login, forgotPassword, getProfile }
+// const CreateUser = async (req, res) => {
+//     const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
+//         req.body
+
+//     try {
+//         // Validate input
+//         if (
+//             !email ||
+//             !fullname ||
+//             !role ||
+//             !affiliateId ||
+//             !daysOfWeek ||
+//             !accountId
+//         ) {
+//             return res.status(400).json({ error: 'All fields are required' })
+//         }
+
+//         // Check if the user already exists
+//         const userExists = await UserAccess.findOne({ email })
+//         if (userExists) {
+//             return res
+//                 .status(400)
+//                 .json({ error: 'User with this email already exists.' })
+//         }
+
+//         // Validate the account ID
+//         const account = await Account.findById(accountId)
+//         if (!account) {
+//             return res.status(400).json({ error: 'Account not found.' })
+//         }
+
+//         // Generate a default password (or generate randomly)
+//         const defaultPassword = Math.random().toString(36).slice(-8)
+
+//         // Hash the password
+//         const salt = await bcrypt.genSalt(10)
+//         const hashedPassword = await bcrypt.hash(defaultPassword, salt)
+
+//         // Create the user object to save
+//         const newUser = new UserAccess({
+//             email,
+//             fullname,
+//             role,
+//             affiliateId, // Associate with affiliate
+//             accountId, // Associate with account
+//             daysOfWeek, // Store the days the user can access
+//             password: hashedPassword,
+//         })
+
+//         const savedUser = await newUser.save()
+
+//         // Send welcome email with default password and reset password link
+//         await sendWelcomeEmail(email, defaultPassword, savedUser._id)
+
+//         // Respond with success message and user details
+//         res.status(201).json({
+//             success: true,
+//             user: savedUser,
+//             message: 'User successfully created and added to the account.',
+//         })
+//     } catch (error) {
+//         console.error('Error creating user:', error)
+//         res.status(500).json({ error: 'Error creating user' })
+//     }
+// }
+
+const CreateUser = async (req, res) => {
+    const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
+        req.body
+
+    try {
+        // Validate input
+        if (
+            !email ||
+            !fullname ||
+            !role ||
+            !affiliateId ||
+            !daysOfWeek ||
+            !accountId
+        ) {
+            return res.status(400).json({ error: 'All fields are required' })
+        }
+
+        // Check if the user already exists
+        const userExists = await UserAccess.findOne({ email })
+        if (userExists) {
+            return res
+                .status(400)
+                .json({ error: 'User with this email already exists.' })
+        }
+
+        // Validate the account ID
+        const account = await Account.findById(accountId)
+        if (!account) {
+            return res.status(400).json({ error: 'Account not found.' })
+        }
+
+        // Generate a default password (or generate randomly)
+        const defaultPassword = Math.random().toString(36).slice(-8)
+
+        // Hash the password
+        const salt = await bcrypt.genSalt(10)
+        const hashedPassword = await bcrypt.hash(defaultPassword, salt)
+
+        // Generate a reset token and expiration
+        const resetToken = crypto.randomBytes(32).toString('hex')
+        const resetTokenExpiry = Date.now() + 3600000 // 1 hour from now
+
+        // Create the user object to save
+        const newUser = new UserAccess({
+            email,
+            fullname,
+            role,
+            affiliateId,
+            accountId,
+            daysOfWeek,
+            password: hashedPassword,
+            resetPasswordToken: resetToken,
+            resetPasswordExpires: resetTokenExpiry,
+        })
+
+        const savedUser = await newUser.save()
+
+        // Send welcome email with reset link
+        const resetLink = `${process.env.FRONTEND_URL}/session/reset-password?token=${resetToken}`
+        await sendWelcomeEmail(email, defaultPassword, resetLink)
+
+        // Respond with success message and user details
+        res.status(201).json({
+            success: true,
+            user: savedUser,
+            message: 'User successfully created and added to the account.',
+        })
+    } catch (error) {
+        console.error('Error creating user:', error)
+        res.status(500).json({ error: 'Error creating user' })
+    }
+}
+
+module.exports = { signUp, login, forgotPassword, getProfile, CreateUser }
