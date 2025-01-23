@@ -327,21 +327,28 @@ const forgotPassword = (req, res) => {
 //         const salt = await bcrypt.genSalt(10)
 //         const hashedPassword = await bcrypt.hash(defaultPassword, salt)
 
+//         // Generate a reset token and expiration
+//         const resetToken = crypto.randomBytes(32).toString('hex')
+//         const resetTokenExpiry = Date.now() + 3600000 // 1 hour from now
+
 //         // Create the user object to save
 //         const newUser = new UserAccess({
 //             email,
 //             fullname,
 //             role,
-//             affiliateId, // Associate with affiliate
-//             accountId, // Associate with account
-//             daysOfWeek, // Store the days the user can access
+//             affiliateId,
+//             accountId,
+//             daysOfWeek,
 //             password: hashedPassword,
+//             resetPasswordToken: resetToken,
+//             resetPasswordExpires: resetTokenExpiry,
 //         })
 
 //         const savedUser = await newUser.save()
 
-//         // Send welcome email with default password and reset password link
-//         await sendWelcomeEmail(email, defaultPassword, savedUser._id)
+//         // Send welcome email with reset link
+//         const resetLink = `${process.env.FRONTEND_URL}/session/reset-password?token=${resetToken}`
+//         await sendWelcomeEmail(email, defaultPassword, resetLink)
 
 //         // Respond with success message and user details
 //         res.status(201).json({
@@ -386,16 +393,17 @@ const CreateUser = async (req, res) => {
             return res.status(400).json({ error: 'Account not found.' })
         }
 
-        // Generate a default password (or generate randomly)
+        // Generate a default password
         const defaultPassword = Math.random().toString(36).slice(-8)
 
         // Hash the password
         const salt = await bcrypt.genSalt(10)
         const hashedPassword = await bcrypt.hash(defaultPassword, salt)
 
-        // Generate a reset token and expiration
-        const resetToken = crypto.randomBytes(32).toString('hex')
-        const resetTokenExpiry = Date.now() + 3600000 // 1 hour from now
+        // Generate a JWT reset token (expires in 1 hour)
+        const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+            expiresIn: '1h',
+        })
 
         // Create the user object to save
         const newUser = new UserAccess({
@@ -407,7 +415,6 @@ const CreateUser = async (req, res) => {
             daysOfWeek,
             password: hashedPassword,
             resetPasswordToken: resetToken,
-            resetPasswordExpires: resetTokenExpiry,
         })
 
         const savedUser = await newUser.save()
@@ -428,4 +435,68 @@ const CreateUser = async (req, res) => {
     }
 }
 
-module.exports = { signUp, login, forgotPassword, getProfile, CreateUser }
+// const ResetPassword = async (req, res) => {
+//     const { token, password } = req.body
+
+//     try {
+//         // Verify the token
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+//         // Find the user by ID from the token
+//         const user = await User.findById(decoded.id)
+//         if (!user) return res.status(404).json({ message: 'User not found' })
+
+//         // Hash the new password and save it
+//         const hashedPassword = await bcrypt.hash(password, 10)
+//         user.password = hashedPassword
+//         await user.save()
+
+//         res.status(200).json({ message: 'Password reset successful' })
+//     } catch (error) {
+//         res.status(400).json({ message: 'Invalid or expired token' })
+//     }
+// }
+
+const ResetPassword = async (req, res) => {
+    const { token, password } = req.body
+
+    console.log('Password reset initiated...')
+    console.log('Token received:', token)
+
+    try {
+        // Verify the token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+        console.log('Decoded token:', decoded)
+
+        // Find the user by ID from the token
+        const user = await User.findById(decoded.email)
+        if (!user) {
+            console.error('User not found for ID:', decoded.email)
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        // Hash the new password and save it
+        const hashedPassword = await bcrypt.hash(password, 10)
+        user.password = hashedPassword
+        await user.save()
+
+        console.log('Password successfully updated for user:', user.email)
+
+        res.status(200).json({ message: 'Password reset successful' })
+    } catch (error) {
+        console.error('Error resetting password:', error.message)
+        res.status(400).json({
+            message: error.message || 'Invalid or expired token',
+        })
+    }
+}
+
+module.exports = {
+    signUp,
+    login,
+    forgotPassword,
+    getProfile,
+    CreateUser,
+    ResetPassword,
+}
