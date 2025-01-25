@@ -55,20 +55,11 @@ const UserAccessSchema = new Schema({
     },
 })
 
-// Hash the password before saving it
 UserAccessSchema.pre('save', async function (next) {
-    if (this.isModified('password')) {
+    if (this.isModified('password') && !this.password.startsWith('$2a$')) {
         this.password = await bcrypt.hash(this.password, 10)
     }
     next()
 })
-
-// Method to check password
-UserAccessSchema.methods.correctPassword = async function (
-    candidatePassword,
-    UserPassword
-) {
-    return await bcrypt.compare(candidatePassword, UserPassword)
-}
 
 module.exports = mongoose.model('UserAccess', UserAccessSchema)

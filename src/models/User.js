@@ -38,7 +38,11 @@ const UserSchema = new Schema({
         data: String,
         default: '',
     },
-
+    role: {
+        type: String,
+        enum: ['Owner', 'Admin', 'Account Officer', 'User'], // List of allowed roles
+        default: 'User', // Default role if none is specified
+    },
     lastSwitchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Switch' },
     resetToken: String,
     expireToken: Date,

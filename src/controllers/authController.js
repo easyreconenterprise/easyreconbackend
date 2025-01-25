@@ -34,29 +34,71 @@ const PASS = process.env.SMTP_PASS
 //     },
 // })
 
+// const signUp = async (req, res, next) => {
+//     const { email } = req.body
+//     const userExist = await User.findOne({ email })
+//     if (userExist) {
+//         return next(new ErrorResponse('E-mail already  registred', 400))
+//     }
+//     const salt = await bcrypt.genSalt(10)
+//     const hashedPassword = await bcrypt.hash(req.body.password, salt)
+//     const newUser = new User({
+//         fullname: req.body.fullname,
+//         company_name: req.body.company_name,
+//         email: req.body.email,
+//         phone: req.body.phone,
+//         address: req.body.address,
+
+//         password: hashedPassword,
+//     })
+//     try {
+//         const user = await newUser.save()
+
+//         // Generate a JWT token
+//         const token = jwt.sign(
+//             { id: user._id, isAdmin: user.isAdmin },
+//             process.env.JWT_SECRET
+//         )
+
+//         res.status(201).json({
+//             success: true,
+//             user,
+//             token, // Include the generated token in the response
+//         })
+//     } catch (error) {
+//         next(error)
+//     }
+// }
 const signUp = async (req, res, next) => {
-    const { email } = req.body
+    const { email, role } = req.body
+
+    // Check if the user already exists
     const userExist = await User.findOne({ email })
     if (userExist) {
-        return next(new ErrorResponse('E-mail already  registred', 400))
+        return next(new ErrorResponse('E-mail already registered', 400))
     }
+
+    // Hash the password
     const salt = await bcrypt.genSalt(10)
     const hashedPassword = await bcrypt.hash(req.body.password, salt)
+
+    // Set the role to 'Owner' explicitly
     const newUser = new User({
         fullname: req.body.fullname,
         company_name: req.body.company_name,
         email: req.body.email,
         phone: req.body.phone,
         address: req.body.address,
-
         password: hashedPassword,
+        role: role || 'Owner', // Default to 'Owner' if no role is provided
     })
+
     try {
         const user = await newUser.save()
 
         // Generate a JWT token
         const token = jwt.sign(
-            { id: user._id, isAdmin: user.isAdmin },
+            { id: user._id, role: user.role },
             process.env.JWT_SECRET
         )
 
@@ -70,42 +112,149 @@ const signUp = async (req, res, next) => {
     }
 }
 
-const login = async (req, res, next) => {
+// const login = async (req, res, next) => {
+//     const { email, password } = req.body
+
+//     try {
+//         // Find the user by username in the database
+//         const user = await User.findOne({ email })
+
+//         // If the user is not found, return an error
+//         if (!user) {
+//             return res.status(404).json({ message: 'User not found' })
+//         }
+
+//         // Compare the provided password with the hashed password stored in the database
+//         const isPasswordValid = await bcrypt.compare(password, user.password)
+
+//         // If the passwords don't match, return an error
+//         if (!isPasswordValid) {
+//             return res.status(401).json({ message: 'Invalid password' })
+//         }
+//         const token = jwt.sign(
+//             { id: user._id, isAdmin: user.isAdmin },
+//             process.env.JWT_SECRET,
+//             {
+//                 expiresIn: '1h',
+//             }
+//         )
+//         console.log('JWT Token Issued:', jwt.decode(token).exp)
+
+//         // Password is valid, generate a JWT token
+
+//         return res.status(200).json({ token, user }) // Include the generated token in the response
+//     } catch (error) {
+//         console.error('Login error:', error)
+//         res.status(500).json({ message: 'Internal server error' })
+//     }
+// }
+
+// const login = async (req, res) => {
+//     const { email, password } = req.body
+//     console.log('Password from request body:', password) // Add this line for debugging
+
+//     try {
+//         console.log('Login attempt:', { email })
+
+//         // Check both collections (User and UserAccess)
+//         let user = await User.findOne({ email: email.trim() })
+//         if (!user) {
+//             console.log(
+//                 'User not found in User collection, checking UserAccess'
+//             ) // Debugging user not found in User collection
+//             user = await UserAccess.findOne({ email: email.trim() }) // Check UserAccess if not found in User
+//         }
+
+//         if (!user) {
+//             console.log('User not found for email:', email) // Debugging if no user found
+//             return res.status(404).json({ message: 'User not found' })
+//         }
+
+//         // Log the stored password hash for debugging
+//         console.log('Stored password hash:', user.password) // Debugging stored password hash
+
+//         // Validate the password using bcrypt.compare
+//         const isPasswordValid = await bcrypt.compare(password, user.password)
+//         console.log('Password validation result:', isPasswordValid) // Debugging password validation result
+
+//         if (!isPasswordValid) {
+//             console.log('Invalid password for email:', email) // Debugging invalid password
+//             return res.status(401).json({ message: 'Invalid password' })
+//         }
+
+//         // Generate JWT with role included
+//         const token = jwt.sign(
+//             {
+//                 id: user._id,
+//                 email: user.email,
+//                 role: user.role,
+//             },
+//             process.env.JWT_SECRET, // Ensure the JWT secret is set in your .env file
+//             { expiresIn: '1h' }
+//         )
+
+//         console.log('JWT Token generated:', token) // Debugging JWT token generation
+
+//         // Send the response with the token and user data
+//         return res.status(200).json({
+//             success: true,
+//             token,
+//             user: {
+//                 id: user._id,
+//                 email: user.email,
+//                 fullname: user.fullname,
+//                 role: user.role,
+//             },
+//         })
+//     } catch (error) {
+//         console.error('Login error:', error) // Debugging errors
+//         res.status(500).json({ message: 'Internal server error' })
+//     }
+// }
+const login = async (req, res) => {
     const { email, password } = req.body
+    console.log(`Login attempt with email: '${email}'`)
 
     try {
-        // Find the user by username in the database
-        const user = await User.findOne({ email })
-
-        // If the user is not found, return an error
+        const user =
+            (await User.findOne({ email })) ||
+            (await UserAccess.findOne({ email }))
         if (!user) {
             return res.status(404).json({ message: 'User not found' })
         }
 
-        // Compare the provided password with the hashed password stored in the database
+        console.log(`User found: ${user.email}`)
+
         const isPasswordValid = await bcrypt.compare(password, user.password)
+        console.log(`Password validation result: ${isPasswordValid}`)
 
-        // If the passwords don't match, return an error
         if (!isPasswordValid) {
-            return res.status(401).json({ message: 'Invalid password' })
+            return res
+                .status(401)
+                .json({ message: 'Invalid email or password' })
         }
+
         const token = jwt.sign(
-            { id: user._id, isAdmin: user.isAdmin },
+            { id: user._id, email: user.email },
             process.env.JWT_SECRET,
-            {
-                expiresIn: '1h',
-            }
+            { expiresIn: '1d' }
         )
-        console.log('JWT Token Issued:', jwt.decode(token).exp)
 
-        // Password is valid, generate a JWT token
-
-        return res.status(200).json({ token, user }) // Include the generated token in the response
+        res.status(200).json({
+            message: 'Login successful',
+            token,
+            user: {
+                email: user.email,
+                fullname: user.fullname,
+                role: user.role,
+            },
+        })
     } catch (error) {
-        console.error('Login error:', error)
+        console.error('Error during login:', error.message)
         res.status(500).json({ message: 'Internal server error' })
     }
 }
+
 const getProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id).select('-password')
@@ -320,16 +469,17 @@ const forgotPassword = (req, res) => {
 //             return res.status(400).json({ error: 'Account not found.' })
 //         }
 
-//         // Generate a default password (or generate randomly)
+//         // Generate a default password
 //         const defaultPassword = Math.random().toString(36).slice(-8)
 
 //         // Hash the password
 //         const salt = await bcrypt.genSalt(10)
 //         const hashedPassword = await bcrypt.hash(defaultPassword, salt)
 
-//         // Generate a reset token and expiration
-//         const resetToken = crypto.randomBytes(32).toString('hex')
-//         const resetTokenExpiry = Date.now() + 3600000 // 1 hour from now
+//         // Generate a JWT reset token (expires in 1 hour)
+//         const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+//             expiresIn: '1h',
+//         })
 
 //         // Create the user object to save
 //         const newUser = new UserAccess({
@@ -341,7 +491,6 @@ const forgotPassword = (req, res) => {
 //             daysOfWeek,
 //             password: hashedPassword,
 //             resetPasswordToken: resetToken,
-//             resetPasswordExpires: resetTokenExpiry,
 //         })
 
 //         const savedUser = await newUser.save()
@@ -361,13 +510,82 @@ const forgotPassword = (req, res) => {
 //         res.status(500).json({ error: 'Error creating user' })
 //     }
 // }
+// const CreateUser = async (req, res) => {
+//     const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
+//         req.body
+
+//     try {
+//         // Validate input
+//         if (
+//             !email ||
+//             !fullname ||
+//             !role || // Ensure the role is provided
+//             !affiliateId ||
+//             !daysOfWeek ||
+//             !accountId
+//         ) {
+//             return res.status(400).json({ error: 'All fields are required' })
+//         }
+
+//         // Check if the user already exists
+//         const userExists = await UserAccess.findOne({ email })
+//         if (userExists) {
+//             return res
+//                 .status(400)
+//                 .json({ error: 'User with this email already exists.' })
+//         }
+
+//         // Validate the account ID
+//         const account = await Account.findById(accountId)
+//         if (!account) {
+//             return res.status(400).json({ error: 'Account not found.' })
+//         }
+
+//         // Generate a random password
+//         const defaultPassword = Math.random().toString(36).slice(-8)
+
+//         // Hash the password
+//         const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+
+//         // Generate a reset token
+//         const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+//             expiresIn: '1h',
+//         })
+
+//         // Create the new user
+//         const newUser = new UserAccess({
+//             email,
+//             fullname,
+//             role, // Use the provided role here
+//             affiliateId,
+//             accountId,
+//             daysOfWeek,
+//             password: hashedPassword,
+//             resetPasswordToken: resetToken,
+//         })
+
+//         const savedUser = await newUser.save()
+
+//         // Send welcome email with reset link
+//         const resetLink = `${process.env.FRONTEND_URL}/session/reset-password?token=${resetToken}`
+//         await sendWelcomeEmail(email, defaultPassword, resetLink)
+
+//         res.status(201).json({
+//             success: true,
+//             user: savedUser,
+//             message: 'User successfully created and added to the account.',
+//         })
+//     } catch (error) {
+//         console.error('Error creating user:', error)
+//         res.status(500).json({ error: 'Error creating user' })
+//     }
+// }
 
 const CreateUser = async (req, res) => {
     const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
         req.body
 
     try {
-        // Validate input
         if (
             !email ||
             !fullname ||
@@ -379,7 +597,6 @@ const CreateUser = async (req, res) => {
             return res.status(400).json({ error: 'All fields are required' })
         }
 
-        // Check if the user already exists
         const userExists = await UserAccess.findOne({ email })
         if (userExists) {
             return res
@@ -387,25 +604,19 @@ const CreateUser = async (req, res) => {
                 .json({ error: 'User with this email already exists.' })
         }
 
-        // Validate the account ID
         const account = await Account.findById(accountId)
         if (!account) {
             return res.status(400).json({ error: 'Account not found.' })
         }
 
         // Generate a default password
-        const defaultPassword = Math.random().toString(36).slice(-8)
+        const defaultPassword = 'defaultpassword1234'
+        const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
-        // Hash the password
-        const salt = await bcrypt.genSalt(10)
-        const hashedPassword = await bcrypt.hash(defaultPassword, salt)
-
-        // Generate a JWT reset token (expires in 1 hour)
         const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
             expiresIn: '1h',
         })
 
-        // Create the user object to save
         const newUser = new UserAccess({
             email,
             fullname,
@@ -413,17 +624,15 @@ const CreateUser = async (req, res) => {
             affiliateId,
             accountId,
             daysOfWeek,
-            password: hashedPassword,
+            password: hashedPassword, // Store the pre-hashed password
             resetPasswordToken: resetToken,
         })
 
         const savedUser = await newUser.save()
 
-        // Send welcome email with reset link
         const resetLink = `${process.env.FRONTEND_URL}/session/reset-password?token=${resetToken}`
         await sendWelcomeEmail(email, defaultPassword, resetLink)
 
-        // Respond with success message and user details
         res.status(201).json({
             success: true,
             user: savedUser,
@@ -439,56 +648,61 @@ const CreateUser = async (req, res) => {
 //     const { token, password } = req.body
 
 //     try {
-//         // Verify the token
+//         // Decode the token
 //         const decoded = jwt.verify(token, process.env.JWT_SECRET)
+//         console.log('Decoded token:', decoded)
 
-//         // Find the user by ID from the token
-//         const user = await User.findById(decoded.id)
-//         if (!user) return res.status(404).json({ message: 'User not found' })
+//         // Find the user by email (not _id)
+//         const user = await User.findOne({ email: decoded.email })
+//         if (!user) {
+//             console.error('User not found for email:', decoded.email)
+//             return res.status(404).json({ message: 'User not found' })
+//         }
 
-//         // Hash the new password and save it
+//         // Hash the new password
 //         const hashedPassword = await bcrypt.hash(password, 10)
 //         user.password = hashedPassword
+
+//         // Save the updated user
 //         await user.save()
 
+//         console.log('Password successfully updated for user:', user.email)
 //         res.status(200).json({ message: 'Password reset successful' })
 //     } catch (error) {
-//         res.status(400).json({ message: 'Invalid or expired token' })
+//         console.error('Error resetting password:', error.message)
+//         res.status(400).json({
+//             message: error.message || 'Invalid or expired token',
+//         })
 //     }
 // }
 
 const ResetPassword = async (req, res) => {
     const { token, password } = req.body
 
-    console.log('Password reset initiated...')
-    console.log('Token received:', token)
-
     try {
-        // Verify the token
+        // Decode the token
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-        console.log('Decoded token:', decoded)
-
-        // Find the user by ID from the token
-        const user = await User.findById(decoded.email)
+        // Find the user by email
+        let user = await User.findOne({ email: decoded.email })
         if (!user) {
-            console.error('User not found for ID:', decoded.email)
-            return res.status(404).json({ message: 'User not found' })
+            user = await UserAccess.findOne({ email: decoded.email })
+            if (!user) {
+                return res.status(404).json({ message: 'User not found' })
+            }
         }
 
-        // Hash the new password and save it
+        // Hash the new password
         const hashedPassword = await bcrypt.hash(password, 10)
         user.password = hashedPassword
-        await user.save()
 
-        console.log('Password successfully updated for user:', user.email)
+        // Save the updated user
+        await user.save()
 
         res.status(200).json({ message: 'Password reset successful' })
     } catch (error) {
         console.error('Error resetting password:', error.message)
-        res.status(400).json({
-            message: error.message || 'Invalid or expired token',
-        })
+        res.status(400).json({ message: 'Invalid or expired token' })
     }
 }
 
