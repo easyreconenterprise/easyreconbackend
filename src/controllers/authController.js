@@ -11,6 +11,7 @@ const crypto = require('crypto')
 
 const UserAccess = require('../models/UserAccess')
 const Account = require('../models/accountModel')
+const Domain = require('../models/domainModel')
 const { sendWelcomeEmail } = require('../utils/email')
 
 const keysecret = process.env.SECRET_KEY
@@ -447,78 +448,6 @@ const forgotPassword = (req, res) => {
 //         if (
 //             !email ||
 //             !fullname ||
-//             !role ||
-//             !affiliateId ||
-//             !daysOfWeek ||
-//             !accountId
-//         ) {
-//             return res.status(400).json({ error: 'All fields are required' })
-//         }
-
-//         // Check if the user already exists
-//         const userExists = await UserAccess.findOne({ email })
-//         if (userExists) {
-//             return res
-//                 .status(400)
-//                 .json({ error: 'User with this email already exists.' })
-//         }
-
-//         // Validate the account ID
-//         const account = await Account.findById(accountId)
-//         if (!account) {
-//             return res.status(400).json({ error: 'Account not found.' })
-//         }
-
-//         // Generate a default password
-//         const defaultPassword = Math.random().toString(36).slice(-8)
-
-//         // Hash the password
-//         const salt = await bcrypt.genSalt(10)
-//         const hashedPassword = await bcrypt.hash(defaultPassword, salt)
-
-//         // Generate a JWT reset token (expires in 1 hour)
-//         const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
-//             expiresIn: '1h',
-//         })
-
-//         // Create the user object to save
-//         const newUser = new UserAccess({
-//             email,
-//             fullname,
-//             role,
-//             affiliateId,
-//             accountId,
-//             daysOfWeek,
-//             password: hashedPassword,
-//             resetPasswordToken: resetToken,
-//         })
-
-//         const savedUser = await newUser.save()
-
-//         // Send welcome email with reset link
-//         const resetLink = `${process.env.FRONTEND_URL}/session/reset-password?token=${resetToken}`
-//         await sendWelcomeEmail(email, defaultPassword, resetLink)
-
-//         // Respond with success message and user details
-//         res.status(201).json({
-//             success: true,
-//             user: savedUser,
-//             message: 'User successfully created and added to the account.',
-//         })
-//     } catch (error) {
-//         console.error('Error creating user:', error)
-//         res.status(500).json({ error: 'Error creating user' })
-//     }
-// }
-// const CreateUser = async (req, res) => {
-//     const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
-//         req.body
-
-//     try {
-//         // Validate input
-//         if (
-//             !email ||
-//             !fullname ||
 //             !role || // Ensure the role is provided
 //             !affiliateId ||
 //             !daysOfWeek ||
@@ -581,20 +510,91 @@ const forgotPassword = (req, res) => {
 //     }
 // }
 
+// const CreateUser = async (req, res) => {
+//     const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
+//         req.body
+
+//     try {
+//         if (
+//             !email ||
+//             !fullname ||
+//             !role ||
+//             !affiliateId ||
+//             !daysOfWeek ||
+//             !accountId
+//         ) {
+//             return res.status(400).json({ error: 'All fields are required' })
+//         }
+
+//         const userExists = await UserAccess.findOne({ email })
+//         if (userExists) {
+//             return res
+//                 .status(400)
+//                 .json({ error: 'User with this email already exists.' })
+//         }
+
+//         const account = await Account.findById(accountId)
+//         if (!account) {
+//             return res.status(400).json({ error: 'Account not found.' })
+//         }
+
+//         // Generate a default password
+//         const defaultPassword = 'defaultpassword1234'
+//         const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+
+//         const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, {
+//             expiresIn: '1h',
+//         })
+
+//         const newUser = new UserAccess({
+//             email,
+//             fullname,
+//             role,
+//             affiliateId,
+//             accountId,
+//             daysOfWeek,
+//             password: hashedPassword, // Store the pre-hashed password
+//             resetPasswordToken: resetToken,
+//         })
+
+//         const savedUser = await newUser.save()
+
+//         const resetLink = `${process.env.FRONTEND_URL}/session/reset-password?token=${resetToken}`
+//         await sendWelcomeEmail(email, defaultPassword, resetLink)
+
+//         res.status(201).json({
+//             success: true,
+//             user: savedUser,
+//             message: 'User successfully created and added to the account.',
+//         })
+//     } catch (error) {
+//         console.error('Error creating user:', error)
+//         res.status(500).json({ error: 'Error creating user' })
+//     }
+// }
 const CreateUser = async (req, res) => {
-    const { email, fullname, role, affiliateId, daysOfWeek, accountId } =
-        req.body
+    const {
+        email,
+        fullname,
+        role,
+        affiliateId,
+        daysOfWeek,
+        accountId,
+        domainId,
+    } = req.body
 
     try {
-        if (
-            !email ||
-            !fullname ||
-            !role ||
-            !affiliateId ||
-            !daysOfWeek ||
-            !accountId
-        ) {
-            return res.status(400).json({ error: 'All fields are required' })
+        if (!email || !fullname || !role || !affiliateId || !daysOfWeek) {
+            return res
+                .status(400)
+                .json({ error: 'Required fields are missing' })
+        }
+
+        // Check for accountId only if the role is not 'Administrator'
+        if (role !== 'Administrator' && !accountId && !domainId) {
+            return res.status(400).json({
+                error: 'Account ID and Domain is required for non-administrator roles',
+            })
         }
 
         const userExists = await UserAccess.findOne({ email })
@@ -604,9 +604,18 @@ const CreateUser = async (req, res) => {
                 .json({ error: 'User with this email already exists.' })
         }
 
-        const account = await Account.findById(accountId)
-        if (!account) {
-            return res.status(400).json({ error: 'Account not found.' })
+        // If role is not 'Administrator', ensure the account exists
+        if (role !== 'Administrator') {
+            const account = await Account.findById(accountId)
+            if (!account) {
+                return res.status(400).json({ error: 'Account not found.' })
+            }
+        }
+        if (role !== 'Administrator') {
+            const domain = await Domain.findById(domainId)
+            if (!domain) {
+                return res.status(400).json({ error: 'Domain not found.' })
+            }
         }
 
         // Generate a default password
@@ -622,9 +631,10 @@ const CreateUser = async (req, res) => {
             fullname,
             role,
             affiliateId,
-            accountId,
+            accountId: role === 'Administrator' ? null : accountId, // Set accountId to null for administrators
+            domainId: role === 'Administrator' ? null : domainId, // Set accountId to null for administrators
             daysOfWeek,
-            password: hashedPassword, // Store the pre-hashed password
+            password: hashedPassword,
             resetPasswordToken: resetToken,
         })
 
@@ -636,7 +646,7 @@ const CreateUser = async (req, res) => {
         res.status(201).json({
             success: true,
             user: savedUser,
-            message: 'User successfully created and added to the account.',
+            message: 'User successfully created.',
         })
     } catch (error) {
         console.error('Error creating user:', error)

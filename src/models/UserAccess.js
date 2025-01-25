@@ -21,10 +21,15 @@ const UserAccessSchema = new Schema({
         ref: 'Affiliate',
         required: [true, 'Affiliate ID is required'],
     },
+    domainId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Domain',
+        required: [false, 'Domain ID is required'],
+    },
     accountId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Account',
-        required: [true, 'Account ID is required'],
+        required: [false, 'Account ID is required'],
     },
     daysOfWeek: {
         type: [String], // Array to hold days of the week
