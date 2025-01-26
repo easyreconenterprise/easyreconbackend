@@ -653,7 +653,25 @@ const CreateUser = async (req, res) => {
         res.status(500).json({ error: 'Error creating user' })
     }
 }
+const getUsers = async (req, res) => {
+    try {
+        const { affiliateId } = req.user // Get the affiliateId from the authenticated user (assuming it's part of the JWT payload)
 
+        // Fetch users by affiliateId (you can modify this as needed to match your database schema)
+        const users = await UserAccess.find({ affiliateId })
+
+        if (!users || users.length === 0) {
+            return res
+                .status(404)
+                .json({ error: 'No users found for this affiliate.' })
+        }
+
+        return res.status(200).json({ users })
+    } catch (error) {
+        console.error('Error fetching users:', error)
+        return res.status(500).json({ error: 'Error fetching users' })
+    }
+}
 // const ResetPassword = async (req, res) => {
 //     const { token, password } = req.body
 
@@ -723,4 +741,5 @@ module.exports = {
     getProfile,
     CreateUser,
     ResetPassword,
+    getUsers,
 }
