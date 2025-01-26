@@ -2093,6 +2093,31 @@ exports.createAccount = async (req, res) => {
         })
     }
 }
+exports.deleteAccount = async (req, res) => {
+    try {
+        const { accountId } = req.params
+
+        // Find and delete the account by its ID
+        const deletedAccount = await Account.findByIdAndDelete(accountId)
+
+        if (!deletedAccount) {
+            return res.status(404).json({
+                error: 'Account not found',
+            })
+        }
+
+        res.status(200).json({
+            message: 'Account deleted successfully',
+            deletedAccount,
+        })
+    } catch (error) {
+        console.error('Error deleting account:', error)
+        res.status(500).json({
+            error: 'Error deleting account',
+            details: error.message,
+        })
+    }
+}
 
 // Create Switch
 // exports.createSwitch = async (req, res) => {

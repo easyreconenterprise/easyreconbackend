@@ -289,6 +289,11 @@ router.get('/accounts/:domainId', authenticateUser, dataController.getAccounts)
 router.post('/switch-session', authenticateUser, dataController.switchSession)
 
 router.get('/data/:id', authenticateUser, dataController.getDataById)
+router.delete(
+    '/account/:accountId',
+    authenticateUser,
+    dataController.deleteAccount
+)
 
 router.delete('/data/:id', authenticateUser, dataController.deleteData) // Use the route with a base URL
 
