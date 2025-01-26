@@ -116,11 +116,67 @@
 //     }
 // }
 
+// // module.exports = authenticateUser
+// const jwt = require('jsonwebtoken')
+// const mongoose = require('mongoose')
+// const User = require('../models/User') // Owner account model
+// const UserAccess = require('../models/UserAccess') // Added user model
+
+// const authenticateUser = async (req, res, next) => {
+//     console.log('AuthenticateUser middleware executed')
+
+//     // Extract token from Authorization header
+//     const authHeader = req.headers.authorization
+//     console.log('Authorization header:', authHeader)
+
+//     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+//         console.log('Unauthorized - Token missing or invalid format')
+//         return res
+//             .status(401)
+//             .json({ error: 'Unauthorized - Token missing or invalid format' })
+//     }
+
+//     const token = authHeader.split(' ')[1] // Extract the token part
+//     console.log('Token:', token)
+
+//     try {
+//         // Verify the token
+//         const decodedToken = jwt.verify(token, process.env.JWT_SECRET)
+//         console.log('Decoded Token:', decodedToken)
+
+//         const userId = decodedToken.id
+
+//         // Check both models for the user
+//         let user = await User.findById(userId) // Check owner account first
+//         if (!user) {
+//             // If not found in User, check UserAccess
+//             user = await UserAccess.findById(userId)
+//             if (!user) {
+//                 console.log('Unauthorized - User not found in both models')
+//                 return res
+//                     .status(404)
+//                     .json({ error: 'Unauthorized - User not found' })
+//             }
+//         }
+
+//         // Attach user information to the request object
+//         req.user = {
+//             id: user._id,
+//             email: user.email,
+//             model: user instanceof User ? 'User' : 'UserAccess', // Indicate which model the user is from
+//         }
+
+//         console.log('Authenticated user:', req.user)
+//         next() // Proceed to the next middleware or route handler
+//     } catch (error) {
+//         console.log('Unauthorized - Invalid token', error)
+//         return res.status(401).json({ error: 'Unauthorized - Invalid token' })
+//     }
+// }
+
 // module.exports = authenticateUser
 const jwt = require('jsonwebtoken')
-const mongoose = require('mongoose')
-const User = require('../models/User') // Owner account model
-const UserAccess = require('../models/UserAccess') // Added user model
+const UserAccess = require('../models/UserAccess') // Adjust according to your path
 
 const authenticateUser = async (req, res, next) => {
     console.log('AuthenticateUser middleware executed')
@@ -129,6 +185,7 @@ const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization
     console.log('Authorization header:', authHeader)
 
+    // Check if token exists and starts with 'Bearer '
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.log('Unauthorized - Token missing or invalid format')
         return res
@@ -144,29 +201,19 @@ const authenticateUser = async (req, res, next) => {
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET)
         console.log('Decoded Token:', decodedToken)
 
-        const userId = decodedToken.id
+        // Retrieve the user from the database based on the userId from the token
+        const user = await UserAccess.findById(decodedToken.userId)
 
-        // Check both models for the user
-        let user = await User.findById(userId) // Check owner account first
         if (!user) {
-            // If not found in User, check UserAccess
-            user = await UserAccess.findById(userId)
-            if (!user) {
-                console.log('Unauthorized - User not found in both models')
-                return res
-                    .status(404)
-                    .json({ error: 'Unauthorized - User not found' })
-            }
+            console.log('Unauthorized - User not found')
+            return res
+                .status(404)
+                .json({ error: 'Unauthorized - User not found' })
         }
 
         // Attach user information to the request object
-        req.user = {
-            id: user._id,
-            email: user.email,
-            model: user instanceof User ? 'User' : 'UserAccess', // Indicate which model the user is from
-        }
+        req.user = user // Now the `req.user` will have the user data from the database
 
-        console.log('Authenticated user:', req.user)
         next() // Proceed to the next middleware or route handler
     } catch (error) {
         console.log('Unauthorized - Invalid token', error)
