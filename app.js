@@ -54,7 +54,7 @@ mongoose
     })
 
 const corsOptions = {
-    origin: ['https://easyrecon.vercel.app', 'http://localhost:3000'], // specify your client's URL
+    origin: ['https://easyrecon.vercel.app', 'http://localhost:3002'], // specify your client's URL
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }

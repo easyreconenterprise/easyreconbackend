@@ -17,6 +17,10 @@ const accountSchema = new mongoose.Schema(
             ref: 'Domain',
             required: true,
         },
+        parentAccountId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Account',
+        },
         internalAccount: { type: String, required: true },
         externalAccount: { type: String },
         accountTitle: { type: String, required: true },

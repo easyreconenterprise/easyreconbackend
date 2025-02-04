@@ -212,6 +212,18 @@ router.post(
 router.post('/affiliate', authenticateUser, dataController.createAffiliate)
 router.post('/domain', authenticateUser, dataController.createDomain)
 router.post('/account', authenticateUser, dataController.createAccount)
+router.post(
+    '/account/working-month',
+    authenticateUser,
+    dataController.setWorkingMonth
+)
+
+router.get(
+    '/accounts/:accountId/months',
+    authenticateUser,
+    dataController.getAccountMonths
+)
+
 router.post('/switch', authenticateUser, dataController.createSwitch)
 router.get(
     '/accounts',

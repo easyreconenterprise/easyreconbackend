@@ -6,6 +6,7 @@ const DataModel = require('../models/DataModel')
 const authenticateUser = require('../middlewares/authenticateUser')
 const StatementModel = require('../models/StatementModel')
 const mongoose = require('mongoose')
+const moment = require('moment') // Use moment.js for date manipulation (if not installed, run `npm install moment`)
 const XLSX = require('xlsx')
 const Affiliate = require('../models/affliateModel')
 const { Readable } = require('stream')
@@ -1673,8 +1674,6 @@ exports.getLedgerBySwitchId = async (req, res) => {
             }
         ).sort({ PostDate: -1 }) // You can change the sorting if needed
 
-        console.log('Ledger fetched:', ledgers)
-
         if (ledgers.length === 0) {
             return res.status(404).json({
                 error: 'No ledger found for this switch or user in the latest session',
@@ -2093,6 +2092,325 @@ exports.createAccount = async (req, res) => {
         })
     }
 }
+
+// controllers/accountController.js
+
+// POST /api/account/working-month
+// exports.setWorkingMonth = async (req, res) => {
+//     const { accountId, month } = req.body
+
+//     if (!accountId || !month) {
+//         return res
+//             .status(400)
+//             .json({ error: 'accountId and month are required.' })
+//     }
+
+//     try {
+//         // 1. Check if an account already exists with the same month
+//         const existingAccount = await Account.findOne({
+//             parentAccountId: accountId, // Assuming 'parentAccountId' links to the original account
+//             month: month,
+//         })
+
+//         if (existingAccount) {
+//             // If found, return the existing account
+//             return res.status(200).json(existingAccount)
+//         }
+
+//         // 2. If not found, create a new account for the selected month
+//         const originalAccount = await Account.findById(accountId)
+//         if (!originalAccount) {
+//             return res
+//                 .status(404)
+//                 .json({ error: 'Original account not found.' })
+//         }
+
+//         // Clone the original account data
+//         const newAccount = new Account({
+//             ...originalAccount.toObject(),
+//             _id: new mongoose.Types.ObjectId(), // Generate new ID
+//             month: month, // Set the new month
+//             parentAccountId: accountId, // Reference to the original account
+//             createdAt: new Date(),
+//             updatedAt: new Date(),
+//         })
+
+//         // Save the new account
+//         await newAccount.save()
+
+//         return res.status(201).json(newAccount)
+//     } catch (error) {
+//         console.error('Error setting working month:', error)
+//         return res.status(500).json({ error: 'Server error.' })
+//     }
+// }
+// exports.setWorkingMonth = async (req, res) => {
+//     const { accountId, month } = req.body
+
+//     console.log('Received request:', { accountId, month }) // Log the incoming request
+
+//     if (!accountId || !month) {
+//         console.log('Validation failed: Missing accountId or month')
+//         return res
+//             .status(400)
+//             .json({ error: 'accountId and month are required.' })
+//     }
+
+//     try {
+//         // const monthDate = new Date(month)
+//         // console.log('Converted month to Date:', monthDate)
+
+//         const currentYear = new Date().getFullYear()
+
+//         // Convert month (e.g., 'April') to a valid Date (e.g., 'April 2025')
+//         const monthDate = moment(
+//             `${month} ${currentYear}`,
+//             'MMMM YYYY'
+//         ).toDate() // Converts "April 2025" to Date
+
+//         // Check if an account already exists with the same balanceAsPerLedgerDate
+//         const existingAccount = await Account.findOne({
+//             parentAccountId: accountId,
+//             balanceAsPerLedgerDate: { $eq: monthDate },
+//         })
+
+//         console.log('Existing account check result:', existingAccount)
+
+//         if (existingAccount) {
+//             console.log('Account already exists, returning existing account.')
+//             return res.status(200).json(existingAccount)
+//         }
+
+//         // If not found, create a new account for the selected month
+//         const originalAccount = await Account.findById(accountId)
+//         console.log('Original account found:', originalAccount)
+
+//         if (!originalAccount) {
+//             console.log('Original account not found.')
+//             return res
+//                 .status(404)
+//                 .json({ error: 'Original account not found.' })
+//         }
+
+//         // Clone the original account data
+//         const newAccount = new Account({
+//             ...originalAccount.toObject(),
+//             _id: new mongoose.Types.ObjectId(), // Generate new ID
+//             parentAccountId: accountId,
+//             balanceAsPerLedgerDate: monthDate, // Update the ledger date
+//             balanceAsPerStatementDate: monthDate, // Update the statement date
+//             createdAt: new Date(),
+//             updatedAt: new Date(),
+//         })
+
+//         console.log('New account to be saved:', newAccount)
+
+//         await newAccount.save()
+//         console.log('New account saved successfully.')
+
+//         return res.status(201).json(newAccount)
+//     } catch (error) {
+//         console.error('Error setting working month:', error)
+//         return res.status(500).json({ error: 'Server error.' })
+//     }
+// }
+
+// exports.setWorkingMonth = async (req, res) => {
+//     const { accountId, month } = req.body
+
+//     console.log('Received request:', { accountId, month }) // Log the incoming request
+
+//     if (!accountId || !month) {
+//         console.log('Validation failed: Missing accountId or month')
+//         return res
+//             .status(400)
+//             .json({ error: 'accountId and month are required.' })
+//     }
+
+//     try {
+//         let monthDate
+//         if (typeof month === 'string') {
+//             const currentYear = new Date().getFullYear()
+//             monthDate = moment
+//                 .utc(`${month} ${currentYear}`, 'MMMM YYYY') // Use UTC directly
+//                 .startOf('month') // Ensure the first day of the month
+//                 .toDate()
+//         } else if (typeof month === 'object') {
+//             monthDate = new Date(month)
+//         }
+
+//         if (!monthDate || isNaN(monthDate.getTime())) {
+//             return res.status(400).json({ error: 'Invalid month format.' })
+//         }
+
+//         // Check if an account already exists with the same balanceAsPerLedgerDate
+//         const existingAccount = await Account.findOne({
+//             parentAccountId: accountId,
+//             balanceAsPerLedgerDate: { $eq: monthDate },
+//         })
+
+//         console.log('Existing account check result:', existingAccount)
+
+//         if (existingAccount) {
+//             console.log('Account already exists, returning existing account.')
+//             return res.status(200).json(existingAccount)
+//         }
+
+//         // If not found, create a new account for the selected month
+//         const originalAccount = await Account.findById(accountId)
+//         console.log('Original account found:', originalAccount)
+
+//         if (!originalAccount) {
+//             console.log('Original account not found.')
+//             return res
+//                 .status(404)
+//                 .json({ error: 'Original account not found.' })
+//         }
+
+//         // Clone the original account data
+//         const newAccount = new Account({
+//             ...originalAccount.toObject(),
+//             _id: new mongoose.Types.ObjectId(), // Generate new ID
+//             parentAccountId: accountId,
+//             balanceAsPerLedgerDate: monthDate, // Update the ledger date
+//             balanceAsPerStatementDate: monthDate, // Update the statement date
+//             createdAt: new Date(),
+//             updatedAt: new Date(),
+//         })
+
+//         console.log('New account to be saved:', newAccount)
+
+//         await newAccount.save()
+//         console.log('New account saved successfully.')
+
+//         return res.status(201).json(newAccount)
+//     } catch (error) {
+//         console.error('Error setting working month:', error)
+//         return res.status(500).json({ error: 'Server error.' })
+//     }
+// }
+
+// exports.setWorkingMonth = async (req, res) => {
+//     try {
+//         const { accountId, month } = req.body
+
+//         const parentAccount = await Account.findById(accountId)
+//         if (!parentAccount)
+//             return res.status(404).json({ message: 'Account not found' })
+
+//         const existingAccount = await Account.findOne({
+//             parentAccountId: parentAccount._id,
+//             balanceAsPerLedgerDate: {
+//                 $gte: new Date(`${month}-01`),
+//                 $lt: new Date(`${month}-31`),
+//             },
+//         })
+
+//         if (existingAccount) {
+//             return res
+//                 .status(200)
+//                 .json({
+//                     message: 'Month already exists',
+//                     account: existingAccount,
+//                 })
+//         }
+
+//         const newAccount = new Account({
+//             ...parentAccount.toObject(),
+//             _id: mongoose.Types.ObjectId(),
+//             parentAccountId: parentAccount._id,
+//             balanceAsPerLedgerDate: new Date(`${month}-01`),
+//         })
+//         await newAccount.save()
+
+//         res.status(201).json({
+//             message: 'Working month set successfully',
+//             account: newAccount,
+//         })
+//     } catch (error) {
+//         console.error('Error setting working month:', error)
+//         res.status(500).json({ message: 'Error setting working month' })
+//     }
+// }
+exports.setWorkingMonth = async (req, res) => {
+    try {
+        const { accountId, month } = req.body
+
+        // Convert month string (e.g., "January") to the corresponding Date
+        const selectedMonth = new Date(`${month} 1, 2025 00:00:00 GMT`)
+
+        const parentAccount = await Account.findById(accountId)
+        if (!parentAccount)
+            return res.status(404).json({ message: 'Account not found' })
+
+        const existingAccount = await Account.findOne({
+            parentAccountId: parentAccount._id,
+            balanceAsPerLedgerDate: {
+                $gte: selectedMonth,
+                $lt: new Date(
+                    selectedMonth.getFullYear(),
+                    selectedMonth.getMonth() + 1,
+                    0
+                ),
+            },
+        })
+
+        if (existingAccount) {
+            return res.status(200).json({
+                message: 'Month already exists',
+                account: existingAccount,
+            })
+        }
+
+        const newAccount = new Account({
+            ...parentAccount.toObject(),
+            _id: mongoose.Types.ObjectId(),
+            parentAccountId: parentAccount._id,
+            balanceAsPerLedgerDate: selectedMonth,
+            balanceAsPerStatementDate: selectedMonth, // Same date for both fields
+        })
+
+        await newAccount.save()
+
+        res.status(201).json({
+            message: 'Working month set successfully',
+            account: newAccount,
+        })
+    } catch (error) {
+        console.error('Error setting working month:', error)
+        res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+exports.getAccountMonths = async (req, res) => {
+    try {
+        const accountId = req.params.accountId
+
+        const accounts = await Account.find(
+            {
+                $or: [
+                    { _id: accountId },
+                    { parentAccountId: accountId }, // Link accounts via parentAccountId
+                ],
+            },
+            'balanceAsPerLedgerDate'
+        )
+
+        const uniqueMonths = [
+            ...new Set(
+                accounts.map((account) =>
+                    account.balanceAsPerLedgerDate?.toISOString().slice(0, 7)
+                )
+            ),
+        ].filter(Boolean)
+
+        res.status(200).json(uniqueMonths)
+    } catch (error) {
+        console.error('Error fetching months:', error)
+        res.status(500).json({ message: 'Error fetching months' })
+    }
+}
+
 exports.deleteAccount = async (req, res) => {
     try {
         const { accountId } = req.params
@@ -2342,8 +2660,6 @@ exports.getAllLedgerBySwitchId = async (req, res) => {
             }
         ).sort({ PostDate: -1 }) // You can change the sorting if needed
 
-        console.log('Ledger fetched:', ledgers)
-
         if (ledgers.length === 0) {
             return res.status(404).json({
                 error: 'No ledger items found for this switch or user',
@@ -2395,8 +2711,6 @@ exports.getAllStatementsBySwitchId = async (req, res) => {
                 userId: 0,
             }
         ).sort({ PostDate: -1 }) // Sort by PostDate in descending order
-
-        console.log('Statements fetched:', statements)
 
         if (statements.length === 0) {
             return res.status(404).json({
