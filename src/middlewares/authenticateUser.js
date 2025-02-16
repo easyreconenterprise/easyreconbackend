@@ -142,7 +142,6 @@ const authenticateUser = async (req, res, next) => {
     try {
         // Verify the token
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET)
-        console.log('Decoded Token:', decodedToken)
 
         const userId = decodedToken.id
 
@@ -166,7 +165,6 @@ const authenticateUser = async (req, res, next) => {
             model: user instanceof User ? 'User' : 'UserAccess', // Indicate which model the user is from
         }
 
-        console.log('Authenticated user:', req.user)
         next() // Proceed to the next middleware or route handler
     } catch (error) {
         console.log('Unauthorized - Invalid token', error)

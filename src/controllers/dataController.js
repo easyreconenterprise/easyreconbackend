@@ -1982,8 +1982,6 @@ exports.createDomain = async (req, res) => {
     }
 }
 
-// Create Account
-
 // exports.createAccount = async (req, res) => {
 //     try {
 //         const {
@@ -1997,12 +1995,25 @@ exports.createDomain = async (req, res) => {
 //             internalRecord,
 //             externalRecord,
 //             balanceAsPerLedger,
+//             balanceAsPerStmt,
 //             balanceAsPerLedgerDate,
 //             balanceAsPerStatementDate,
 //             accountCode,
 //             accountClass,
 //         } = req.body
 
+//         // Check if an account with the same internalAccount, externalAccount, or accountTitle already exists
+//         const existingAccount = await Account.findOne({
+//             $or: [{ internalAccount }, { externalAccount }],
+//         })
+
+//         if (existingAccount) {
+//             return res.status(400).json({
+//                 error: 'Account with the same internalAccount, externalAccount, ',
+//             })
+//         }
+
+//         // Proceed with creating the account if no duplicates are found
 //         const account = new Account({
 //             userId: req.user.id,
 //             affiliate: affiliateId,
@@ -2015,6 +2026,7 @@ exports.createDomain = async (req, res) => {
 //             internalRecord,
 //             externalRecord,
 //             balanceAsPerLedger,
+//             balanceAsPerStmt,
 //             balanceAsPerLedgerDate,
 //             balanceAsPerStatementDate,
 //             accountCode,
@@ -2031,6 +2043,7 @@ exports.createDomain = async (req, res) => {
 //         })
 //     }
 // }
+
 exports.createAccount = async (req, res) => {
     try {
         const {
@@ -2049,43 +2062,99 @@ exports.createAccount = async (req, res) => {
             balanceAsPerStatementDate,
             accountCode,
             accountClass,
+            parentAccountId, // Added to distinguish parent and child
         } = req.body
 
-        // Check if an account with the same internalAccount, externalAccount, or accountTitle already exists
-        const existingAccount = await Account.findOne({
-            $or: [{ internalAccount }, { externalAccount }],
-        })
+        const currentMonth = new Date(balanceAsPerLedgerDate).getMonth() + 1
 
-        if (existingAccount) {
-            return res.status(400).json({
-                error: 'Account with the same internalAccount, externalAccount, ',
+        let existingAccount
+
+        if (parentAccountId) {
+            // Look for existing child account (monthly account)
+            existingAccount = await Account.findOne({
+                parentAccountId,
+                balanceAsPerLedgerDate: {
+                    $gte: new Date(
+                        new Date(balanceAsPerLedgerDate).getFullYear(),
+                        currentMonth - 1,
+                        1
+                    ),
+                    $lt: new Date(
+                        new Date(balanceAsPerLedgerDate).getFullYear(),
+                        currentMonth,
+                        1
+                    ),
+                },
+            })
+        } else {
+            // Look for existing parent account
+            //     existingAccount = await Account.findOne({
+            //         internalAccount,
+            //         externalAccount,
+            //         accountTitle,
+            //     }).sort({ balanceAsPerLedgerDate: -1 }) // Latest balance
+            // }
+            existingAccount = await Account.findOne({
+                internalAccount,
+                externalAccount,
+                accountTitle,
+                balanceAsPerLedgerDate: {
+                    $gte: new Date(
+                        new Date(balanceAsPerLedgerDate).getFullYear(),
+                        currentMonth - 1,
+                        1
+                    ),
+                    $lt: new Date(
+                        new Date(balanceAsPerLedgerDate).getFullYear(),
+                        currentMonth,
+                        1
+                    ),
+                },
             })
         }
 
-        // Proceed with creating the account if no duplicates are found
-        const account = new Account({
-            userId: req.user.id,
-            affiliate: affiliateId,
-            domain: domainId,
-            internalAccount,
-            externalAccount,
-            accountTitle,
-            shortTitle,
-            currency,
-            internalRecord,
-            externalRecord,
-            balanceAsPerLedger,
-            balanceAsPerStmt,
-            balanceAsPerLedgerDate,
-            balanceAsPerStatementDate,
-            accountCode,
-            accountClass,
-        })
+        let finalBalanceLedger = balanceAsPerLedger || 0
+        let finalBalanceStmt = balanceAsPerStmt || 0
 
-        const savedAccount = await account.save()
-        res.status(201).json(savedAccount)
+        if (!existingAccount && parentAccountId) {
+            // If this is a new month and there's a parent, inherit the previous balance
+            const parentAccount = await Account.findById(parentAccountId)
+            if (parentAccount) {
+                finalBalanceLedger = parentAccount.balanceAsPerLedger
+                finalBalanceStmt = parentAccount.balanceAsPerStmt
+            }
+        }
+
+        if (!existingAccount) {
+            const newAccount = new Account({
+                userId: req.user.id,
+                affiliate: affiliateId,
+                domain: domainId,
+                internalAccount,
+                externalAccount,
+                accountTitle,
+                shortTitle,
+                currency,
+                internalRecord,
+                externalRecord,
+                balanceAsPerLedger: finalBalanceLedger,
+                balanceAsPerStmt: finalBalanceStmt,
+                balanceAsPerLedgerDate,
+                balanceAsPerStatementDate,
+                accountCode,
+                accountClass,
+                parentAccountId: parentAccountId || null,
+            })
+
+            const savedAccount = await newAccount.save()
+            return res.status(201).json(savedAccount)
+        } else {
+            return res
+                .status(400)
+                .json({ error: 'Account for this month already exists' })
+        }
     } catch (error) {
-        console.error('Error creating account:', error) // Detailed logging
+        console.error('Error creating account:', error)
         res.status(500).json({
             error: 'Error creating account',
             details: error.message,
@@ -2332,18 +2401,244 @@ exports.createAccount = async (req, res) => {
 //         res.status(500).json({ message: 'Error setting working month' })
 //     }
 // }
+
+// exports.createAccount = async (req, res) => {
+//     try {
+//         const {
+//             affiliateId,
+//             domainId,
+//             internalAccount,
+//             externalAccount,
+//             accountTitle,
+//             shortTitle,
+//             currency,
+//             internalRecord,
+//             externalRecord,
+//             balanceAsPerLedger,
+//             balanceAsPerStmt,
+//             balanceAsPerLedgerDate,
+//             balanceAsPerStatementDate,
+//             accountCode,
+//             accountClass,
+//         } = req.body
+
+//         // Get the current working month (from the frontend or another logic)
+//         const currentMonth = new Date(balanceAsPerLedgerDate).getMonth() + 1 // Extracting month
+
+//         // Check if an account exists for this specific month
+//         const existingAccount = await Account.findOne({
+//             internalAccount,
+//             externalAccount,
+//             accountTitle,
+//             balanceAsPerLedgerDate: {
+//                 $gte: new Date(
+//                     new Date(balanceAsPerLedgerDate).getFullYear(),
+//                     currentMonth - 1,
+//                     1
+//                 ),
+//                 $lt: new Date(
+//                     new Date(balanceAsPerLedgerDate).getFullYear(),
+//                     currentMonth,
+//                     1
+//                 ),
+//             },
+//         })
+
+//         let finalBalanceLedger = balanceAsPerLedger || 0
+//         let finalBalanceStmt = balanceAsPerStmt || 0
+
+//         // If no record exists for this month, check if a previous month's record exists
+//         if (!existingAccount) {
+//             const previousMonthAccount = await Account.findOne({
+//                 internalAccount,
+//                 externalAccount,
+//                 accountTitle,
+//             }).sort({ balanceAsPerLedgerDate: -1 }) // Get the latest previous entry
+
+//             // Carry forward balance from the most recent month if available
+//             if (previousMonthAccount) {
+//                 finalBalanceLedger = previousMonthAccount.balanceAsPerLedger
+//                 finalBalanceStmt = previousMonthAccount.balanceAsPerStmt
+//             }
+//         }
+
+//         // Create a new account entry for the month if not found
+//         if (!existingAccount) {
+//             const account = new Account({
+//                 userId: req.user.id,
+//                 affiliate: affiliateId,
+//                 domain: domainId,
+//                 internalAccount,
+//                 externalAccount,
+//                 accountTitle,
+//                 shortTitle,
+//                 currency,
+//                 internalRecord,
+//                 externalRecord,
+//                 balanceAsPerLedger: finalBalanceLedger,
+//                 balanceAsPerStmt: finalBalanceStmt,
+//                 balanceAsPerLedgerDate,
+//                 balanceAsPerStatementDate,
+//                 accountCode,
+//                 accountClass,
+//             })
+
+//             const savedAccount = await account.save()
+//             return res.status(201).json(savedAccount)
+//         } else {
+//             return res
+//                 .status(400)
+//                 .json({ error: 'Account for this month already exists' })
+//         }
+//     } catch (error) {
+//         console.error('Error creating account:', error)
+//         res.status(500).json({
+//             error: 'Error creating account',
+//             details: error.message,
+//         })
+//     }
+// }
+
+// exports.setWorkingMonth = async (req, res) => {
+//     try {
+//         const { accountId, month } = req.body
+
+//         // Convert month string (e.g., "January") to the corresponding Date
+//         const selectedMonth = new Date(`${month} 1, 2025 00:00:00 GMT`)
+
+//         const parentAccount = await Account.findById(accountId)
+//         if (!parentAccount)
+//             return res.status(404).json({ message: 'Account not found' })
+
+//         const existingAccount = await Account.findOne({
+//             parentAccountId: parentAccount._id,
+//             balanceAsPerLedgerDate: {
+//                 $gte: selectedMonth,
+//                 $lt: new Date(
+//                     selectedMonth.getFullYear(),
+//                     selectedMonth.getMonth() + 1,
+//                     0
+//                 ),
+//             },
+//         })
+
+//         if (existingAccount) {
+//             return res.status(200).json({
+//                 message: 'Month already exists',
+//                 account: existingAccount,
+//             })
+//         }
+
+//         const newAccount = new Account({
+//             ...parentAccount.toObject(),
+//             _id: mongoose.Types.ObjectId(),
+//             parentAccountId: parentAccount._id,
+//             balanceAsPerLedgerDate: selectedMonth,
+//             balanceAsPerStatementDate: selectedMonth, // Same date for both fields
+//         })
+
+//         await newAccount.save()
+
+//         res.status(201).json({
+//             message: 'Working month set successfully',
+//             account: newAccount,
+//         })
+//     } catch (error) {
+//         console.error('Error setting working month:', error)
+//         res.status(500).json({ message: 'Internal server error' })
+//     }
+// }
+
+// exports.setWorkingMonth = async (req, res) => {
+//     try {
+//         const { accountId, month } = req.body
+//         const selectedMonth = new Date(`${month} 1, 2025 00:00:00 GMT`)
+
+//         // Get the parent account
+//         const parentAccount = await Account.findById(accountId)
+//         if (!parentAccount)
+//             return res.status(404).json({ message: 'Account not found' })
+
+//         // Find the existing child account for the selected month
+//         let existingAccount = await Account.findOne({
+//             parentAccountId: parentAccount._id,
+//             balanceAsPerLedgerDate: {
+//                 $gte: selectedMonth,
+//                 $lt: new Date(
+//                     selectedMonth.getFullYear(),
+//                     selectedMonth.getMonth() + 1,
+//                     0
+//                 ),
+//             },
+//         })
+
+//         // If the month exists, return the existing child account
+//         if (existingAccount) {
+//             return res.status(200).json({
+//                 message: 'Month already exists',
+//                 account: existingAccount,
+//             })
+//         }
+
+//         // ✅ FIX: Update the parent account first with the new balance
+//         parentAccount.balanceAsPerLedger =
+//             req.body.balanceAsPerLedger || parentAccount.balanceAsPerLedger
+//         parentAccount.balanceAsPerStmt =
+//             req.body.balanceAsPerStmt || parentAccount.balanceAsPerStmt
+//         await parentAccount.save() // Save parent update
+
+//         // ✅ FIX: Create the child account and inherit the updated balance from parent
+//         const newAccount = new Account({
+//             userId: parentAccount.userId,
+//             affiliate: parentAccount.affiliate,
+//             domain: parentAccount.domain,
+//             internalAccount: parentAccount.internalAccount,
+//             externalAccount: parentAccount.externalAccount,
+//             accountTitle: parentAccount.accountTitle,
+//             shortTitle: parentAccount.shortTitle,
+//             currency: parentAccount.currency,
+//             internalRecord: parentAccount.internalRecord,
+//             externalRecord: parentAccount.externalRecord,
+//             balanceAsPerLedger: parentAccount.balanceAsPerLedger, // Inherit new balance
+//             balanceAsPerStmt: parentAccount.balanceAsPerStmt, // Inherit new balance
+//             balanceAsPerLedgerDate: selectedMonth,
+//             balanceAsPerStatementDate: selectedMonth,
+//             accountCode: parentAccount.accountCode,
+//             accountClass: parentAccount.accountClass,
+//             parentAccountId: parentAccount._id,
+//         })
+
+//         await newAccount.save()
+
+//         res.status(201).json({
+//             message: 'Working month set successfully',
+//             account: newAccount,
+//         })
+//     } catch (error) {
+//         console.error('Error setting working month:', error)
+//         res.status(500).json({ message: 'Internal server error' })
+//     }
+// }
+
 exports.setWorkingMonth = async (req, res) => {
     try {
-        const { accountId, month } = req.body
-
-        // Convert month string (e.g., "January") to the corresponding Date
+        const { accountId, month, balanceAsPerLedger, balanceAsPerStmt } =
+            req.body
         const selectedMonth = new Date(`${month} 1, 2025 00:00:00 GMT`)
 
-        const parentAccount = await Account.findById(accountId)
-        if (!parentAccount)
-            return res.status(404).json({ message: 'Account not found' })
+        console.log('🚀 Incoming Request:', req.body)
 
-        const existingAccount = await Account.findOne({
+        // Get the parent account
+        const parentAccount = await Account.findById(accountId)
+        if (!parentAccount) {
+            console.log('❌ Parent account not found')
+            return res.status(404).json({ message: 'Account not found' })
+        }
+
+        console.log('✅ Parent Account Found:', parentAccount)
+
+        // Find the existing child account for the selected month
+        let existingAccount = await Account.findOne({
             parentAccountId: parentAccount._id,
             balanceAsPerLedgerDate: {
                 $gte: selectedMonth,
@@ -2356,28 +2651,82 @@ exports.setWorkingMonth = async (req, res) => {
         })
 
         if (existingAccount) {
+            console.log('🟢 Existing Child Account Found:', existingAccount)
+
+            // ✅ Update the existing child account
+            existingAccount.balanceAsPerLedger =
+                balanceAsPerLedger || existingAccount.balanceAsPerLedger
+            existingAccount.balanceAsPerStmt =
+                balanceAsPerStmt || existingAccount.balanceAsPerStmt
+            existingAccount.updatedAt = new Date()
+
+            await existingAccount.save()
+
+            console.log('🔄 Child Account Updated:', existingAccount)
+
             return res.status(200).json({
-                message: 'Month already exists',
+                message: 'Month already exists, updated balance',
                 account: existingAccount,
             })
         }
 
+        console.log('⚠️ No existing child account found, creating new one...')
+
+        if (existingAccount) {
+            // ✅ Update existing child account with uploaded balance
+            existingAccount.balanceAsPerLedger = balanceAsPerLedger
+            existingAccount.balanceAsPerStmt = balanceAsPerStmt
+            existingAccount.updatedAt = new Date()
+
+            await existingAccount.save()
+            console.log('✅ Child Account Balance Updated:', existingAccount)
+
+            return res.status(200).json({
+                message: 'Updated balance for existing month',
+                account: existingAccount,
+            })
+        }
+
+        // ✅ Only update the parent if there's no child account for this month
+        parentAccount.balanceAsPerLedger =
+            balanceAsPerLedger || parentAccount.balanceAsPerLedger
+        parentAccount.balanceAsPerStmt =
+            balanceAsPerStmt || parentAccount.balanceAsPerStmt
+        await parentAccount.save()
+
+        console.log('🟢 Parent Account Updated:', parentAccount)
+
+        // ✅ Create the child account with updated balances
         const newAccount = new Account({
-            ...parentAccount.toObject(),
-            _id: mongoose.Types.ObjectId(),
-            parentAccountId: parentAccount._id,
+            userId: parentAccount.userId,
+            affiliate: parentAccount.affiliate,
+            domain: parentAccount.domain,
+            internalAccount: parentAccount.internalAccount,
+            externalAccount: parentAccount.externalAccount,
+            accountTitle: parentAccount.accountTitle,
+            shortTitle: parentAccount.shortTitle,
+            currency: parentAccount.currency,
+            internalRecord: parentAccount.internalRecord,
+            externalRecord: parentAccount.externalRecord,
+            balanceAsPerLedger: parentAccount.balanceAsPerLedger, // Inherit latest balance
+            balanceAsPerStmt: parentAccount.balanceAsPerStmt, // Inherit latest balance
             balanceAsPerLedgerDate: selectedMonth,
-            balanceAsPerStatementDate: selectedMonth, // Same date for both fields
+            balanceAsPerStatementDate: selectedMonth,
+            accountCode: parentAccount.accountCode,
+            accountClass: parentAccount.accountClass,
+            parentAccountId: parentAccount._id,
         })
 
         await newAccount.save()
+
+        console.log('✅ New Child Account Created:', newAccount)
 
         res.status(201).json({
             message: 'Working month set successfully',
             account: newAccount,
         })
     } catch (error) {
-        console.error('Error setting working month:', error)
+        console.error('❌ Error setting working month:', error)
         res.status(500).json({ message: 'Internal server error' })
     }
 }
