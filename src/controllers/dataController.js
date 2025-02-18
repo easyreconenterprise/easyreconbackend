@@ -33,407 +33,6 @@ const s3 = new S3Client({
         timeout: 60000, // Set a longer timeout (e.g., 60 seconds)
     },
 })
-// exports.uploadFile = async (req, res) => {
-//     try {
-//         const file = req.file
-//         const userId = req.user.id // Get the user's ID from the authentication
-//         const switchId = req.body.switch // Get the switch ID from the request
-
-//         if (!file) {
-//             return res.status(400).send('No file was uploaded.')
-//         }
-
-//         // Fetch the switch to get the account ID
-//         const switchData = await Switch.findById(switchId).populate('account')
-//         if (!switchData) {
-//             return res.status(404).send('Switch not found.')
-//         }
-
-//         const accountId = switchData.account._id // Get the account ID from the switch
-
-//         const filePath = path.join(__dirname, '../uploads', file.filename)
-//         // const filePath = path.join('/tmp', file.filename)
-
-//         const fileStream = fs.createReadStream(filePath)
-
-//         // Generate a new upload session ID
-//         const uploadSessionId = new mongoose.Types.ObjectId()
-
-//         Papa.parse(fileStream, {
-//             header: true,
-//             dynamicTyping: true,
-//             complete: async (results) => {
-//                 const jsonData = results.data
-//                     .map((row) => {
-//                         const keys = Object.keys(row)
-//                         if (keys.length < 4) {
-//                             throw new Error('Insufficient columns in the file.')
-//                         }
-
-//                         const mappedRow = {
-//                             PostDate: row[keys[0]], // First column
-//                             ValDate: row[keys[1]], // Second column
-//                             Details: row[keys[2]], // Third column
-//                             Debit:
-//                                 parseFloat(
-//                                     String(row[keys[3]]).replace(/,/g, '')
-//                                 ) || 0.0, // Ensure Debit is a number
-//                             Credit: 0.0, // Fourth column
-//                             USID: row[keys[4]], // Fifth column
-//                         }
-
-//                         return mappedRow
-//                     })
-//                     .filter((row) => Object.values(row).some(Boolean))
-
-//                 try {
-//                     // Calculate the total debit from the parsed data for the current file
-//                     const totalDebitForCurrentFile = jsonData.reduce(
-//                         (sum, row) => sum + row.Debit,
-//                         0
-//                     )
-
-//                     // Fetch the account
-//                     const account = await Account.findById(accountId)
-//                     if (!account) {
-//                         return res.status(404).send('Account not found.')
-//                     }
-
-//                     // Update the balanceAsPerLedger with the total debit of this file
-//                     const currentBalance = parseFloat(
-//                         account.balanceAsPerLedger || 0
-//                     )
-//                     const updatedBalance =
-//                         currentBalance + totalDebitForCurrentFile
-//                     account.balanceAsPerLedger = updatedBalance.toString()
-
-//                     await account.save()
-
-//                     // Save each row to the DataModel with the account and session reference
-//                     const promises = jsonData.map(async (row) => {
-//                         await DataModel.create({
-//                             userId,
-//                             switch: switchId,
-//                             accountId, // Use the account ID from the switch
-//                             uploadSessionId, // Attach the upload session ID
-//                             ...row,
-//                         })
-//                     })
-
-//                     await Promise.all(promises)
-
-//                     fs.unlinkSync(filePath) // Delete the uploaded file
-//                     return res.status(200).json({
-//                         message:
-//                             'File uploaded and data saved to the database.',
-//                         updatedBalance,
-//                         totalDebitForCurrentFile,
-//                     })
-//                 } catch (err) {
-//                     console.error('Error saving data:', err)
-//                     return res.status(500).send('Error saving data.')
-//                 }
-//             },
-//         })
-//     } catch (err) {
-//         console.error('Error uploading file:', err)
-//         return res.status(500).send('Internal server error.')
-//     }
-// }
-
-//for csv to work
-
-// exports.uploadFile = async (req, res) => {
-//     try {
-//         const file = req.file // Uploaded file
-//         const userId = req.user.id // User ID
-//         const switchId = req.body.switch // Switch ID from request body
-
-//         if (!file) {
-//             return res.status(400).json({ error: 'No file was uploaded.' })
-//         }
-
-//         // Fetch the switch to get the account ID
-//         const switchData = await Switch.findById(switchId).populate('account')
-//         if (!switchData) {
-//             return res.status(404).json({ error: 'Switch not found.' })
-//         }
-
-//         const accountId = switchData.account._id // Get the account ID from the switch
-
-//         // Generate a new upload session ID
-//         const uploadSessionId = new mongoose.Types.ObjectId()
-
-//         // Fetch the file from S3
-//         const command = new GetObjectCommand({
-//             Bucket: process.env.AWS_BUCKET_NAME,
-//             Key: file.key,
-//         })
-
-//         const response = await s3.send(command) // Execute the command
-
-//         // S3 body comes as a stream, so we need to process it
-//         const s3FileStream = Readable.from(response.Body)
-
-//         const chunks = []
-//         s3FileStream.on('data', (chunk) => chunks.push(chunk))
-//         s3FileStream.on('end', async () => {
-//             const fileData = Buffer.concat(chunks).toString('utf-8')
-
-//             try {
-//                 Papa.parse(fileData, {
-//                     header: true,
-//                     dynamicTyping: true,
-//                     complete: async (results) => {
-//                         const jsonData = results.data // Ensure jsonData is accessible
-
-//                         // Extracting keys dynamically
-//                         const keys = Object.keys(jsonData[0])
-
-//                         // Mapping rows with correct fields
-//                         const mappedData = jsonData.map((row) => ({
-//                             PostDate: row[keys[0]],
-//                             ValDate: row[keys[1]],
-//                             Details: row[keys[2]],
-//                             Debit: row[keys[3]] || '0.00',
-//                             Credit: 0.0,
-//                             USID: row[keys[4]] || '0.00',
-//                         }))
-
-//                         try {
-//                             // Ensure totalDebit is treated as a number
-//                             const totalDebit = mappedData.reduce(
-//                                 (sum, row) => sum + parseFloat(row.Debit || 0),
-//                                 0
-//                             )
-
-//                             const account = await Account.findById(accountId)
-//                             if (!account) {
-//                                 return res
-//                                     .status(404)
-//                                     .json({ error: 'Account not found.' })
-//                             }
-
-//                             const currentBalance = parseFloat(
-//                                 account.balanceAsPerLedger || 0
-//                             )
-//                             account.balanceAsPerLedger = (
-//                                 currentBalance + totalDebit
-//                             ).toFixed(2)
-
-//                             await account.save()
-
-//                             await DataModel.insertMany(
-//                                 mappedData.map((row) => ({
-//                                     userId,
-//                                     switch: switchId,
-//                                     accountId,
-//                                     uploadSessionId,
-//                                     ...row,
-//                                 }))
-//                             )
-
-//                             return res.status(200).json({
-//                                 message:
-//                                     'File uploaded and data saved to the database.',
-//                                 fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.key}`,
-//                                 updatedBalance: account.balanceAsPerLedger,
-//                                 totalDebit,
-//                             })
-//                         } catch (err) {
-//                             console.error('Error saving data:', err)
-//                             return res
-//                                 .status(500)
-//                                 .json({ error: 'Error saving data.' })
-//                         }
-//                     },
-//                 })
-//             } catch (parseError) {
-//                 console.error('Error parsing file:', parseError)
-//                 return res.status(500).json({ error: 'Error parsing file.' })
-//             }
-//         })
-
-//         s3FileStream.on('error', (err) => {
-//             console.error('S3 File Stream Error:', err)
-//             return res
-//                 .status(500)
-//                 .json({ error: 'Error processing file from S3.' })
-//         })
-//     } catch (err) {
-//         console.error('Error uploading file:', err)
-//         return res.status(500).json({ error: 'Internal server error.' })
-//     }
-// }
-
-//forxlsx to work
-
-// exports.uploadFile = async (req, res) => {
-//     try {
-//         const file = req.file // Uploaded file
-//         const userId = req.user.id // User ID
-//         const switchId = req.body.switch // Switch ID from request body
-
-//         if (!file) {
-//             return res.status(400).json({ error: 'No file was uploaded.' })
-//         }
-
-//         // Fetch the switch to get the account ID
-//         const switchData = await Switch.findById(switchId).populate('account')
-//         if (!switchData) {
-//             return res.status(404).json({ error: 'Switch not found.' })
-//         }
-
-//         const accountId = switchData.account._id // Get the account ID from the switch
-
-//         // Generate a new upload session ID
-//         const uploadSessionId = new mongoose.Types.ObjectId()
-
-//         // Fetch the file from S3
-//         const command = new GetObjectCommand({
-//             Bucket: process.env.AWS_BUCKET_NAME,
-//             Key: file.key,
-//         })
-
-//         const response = await s3.send(command) // Execute the command
-
-//         // S3 body comes as a stream, so we need to process it
-//         const s3FileStream = Readable.from(response.Body)
-
-//         const chunks = []
-//         s3FileStream.on('data', (chunk) => chunks.push(chunk))
-//         s3FileStream.on('end', async () => {
-//             const fileData = Buffer.concat(chunks)
-
-//             let jsonData = []
-
-//             // Determine file type and process accordingly
-//             if (file.mimetype === 'text/csv') {
-//                 console.log('Processing CSV file.')
-//                 const csvData = fileData.toString('utf-8')
-
-//                 const parseCSV = (data) => {
-//                     return new Promise((resolve, reject) => {
-//                         Papa.parse(data, {
-//                             header: true,
-//                             dynamicTyping: true,
-//                             complete: (results) => {
-//                                 resolve(
-//                                     results.data.filter((row) =>
-//                                         Object.values(row).some(Boolean)
-//                                     )
-//                                 )
-//                             },
-//                             error: (err) => {
-//                                 reject(err)
-//                             },
-//                         })
-//                     })
-//                 }
-
-//                 jsonData = await parseCSV(csvData)
-//             } else if (
-//                 file.mimetype ===
-//                 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-//             ) {
-//                 console.log('Processing XLSX file.')
-//                 const workbook = XLSX.read(fileData, { type: 'buffer' })
-//                 const sheetName = workbook.SheetNames[0]
-//                 const sheet = workbook.Sheets[sheetName]
-//                 jsonData = XLSX.utils.sheet_to_json(sheet)
-//             } else {
-//                 console.error('Unsupported file format:', file.mimetype)
-//                 return res
-//                     .status(400)
-//                     .json({ error: 'Unsupported file format.' })
-//             }
-
-//             // Extracting keys dynamically
-//             const keys = Object.keys(jsonData[0])
-
-//             // Convert Excel dates if present
-//             const convertExcelDate = (excelDate) => {
-//                 const date = new Date((excelDate - 25569) * 86400 * 1000) // Excel stores dates starting from 1900
-//                 return date.toLocaleDateString('en-GB', {
-//                     year: '2-digit',
-//                     month: 'short',
-//                     day: '2-digit',
-//                 })
-//             }
-
-//             const mappedData = jsonData.map((row) => ({
-//                 PostDate: isNaN(row[keys[0]])
-//                     ? row[keys[0]]
-//                     : convertExcelDate(row[keys[0]]),
-//                 ValDate: isNaN(row[keys[1]])
-//                     ? row[keys[1]]
-//                     : convertExcelDate(row[keys[1]]),
-//                 Details: row[keys[2]],
-//                 // Debit: row[keys[3]] || '0.00',
-//                 // Debit: row[keys[3]] ? Math.abs(row[keys[3]]) : 0,
-//                 Debit:
-//                     row[keys[3]] && row[keys[3]].toString().includes('-')
-//                         ? Math.abs(row[keys[3]])
-//                         : row[keys[3]] || 0,
-
-//                 Credit: 0.0,
-//                 USID: row[keys[4]] || '0.00',
-//             }))
-
-//             try {
-//                 const totalDebit = mappedData.reduce(
-//                     (sum, row) => sum + parseFloat(row.Debit || 0),
-//                     0
-//                 )
-//                 console.log('Total Debit:', totalDebit, 'Total Credit:')
-
-//                 const account = await Account.findById(accountId)
-//                 if (!account) {
-//                     return res.status(404).json({ error: 'Account not found.' })
-//                 }
-
-//                 const currentBalance = parseFloat(
-//                     account.balanceAsPerLedger || 0
-//                 )
-//                 account.balanceAsPerLedger = (
-//                     currentBalance + totalDebit
-//                 ).toFixed(2)
-
-//                 await account.save()
-
-//                 await DataModel.insertMany(
-//                     mappedData.map((row) => ({
-//                         userId,
-//                         switch: switchId,
-//                         accountId,
-//                         uploadSessionId,
-//                         ...row,
-//                     }))
-//                 )
-
-//                 return res.status(200).json({
-//                     message: 'File uploaded and data saved to the database.',
-//                     fileUrl: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${file.key}`,
-//                     updatedBalance: account.balanceAsPerLedger,
-//                     totalDebit,
-//                 })
-//             } catch (err) {
-//                 console.error('Error saving data:', err)
-//                 return res.status(500).json({ error: 'Error saving data.' })
-//             }
-//         })
-
-//         s3FileStream.on('error', (err) => {
-//             console.error('S3 File Stream Error:', err)
-//             return res
-//                 .status(500)
-//                 .json({ error: 'Error processing file from S3.' })
-//         })
-//     } catch (err) {
-//         console.error('Error uploading file:', err)
-//         return res.status(500).json({ error: 'Internal server error.' })
-//     }
-// }
 
 exports.uploadFile = async (req, res) => {
     try {
@@ -609,6 +208,57 @@ exports.uploadFile = async (req, res) => {
     } catch (err) {
         console.error('Error uploading file:', err)
         return res.status(500).json({ error: 'Internal server error.' })
+    }
+}
+
+exports.manualEntry = async (req, res) => {
+    try {
+        const { transactions, switchId } = req.body
+        const userId = req.user.id // Ensure user is authenticated
+
+        // Validate switchId
+        if (!switchId) {
+            return res.status(400).json({ error: 'Switch ID is required.' })
+        }
+
+        // Find the switch and ensure it exists
+        const switchData = await Switch.findById(switchId)
+        if (!switchData) {
+            return res.status(404).json({ error: 'Switch not found.' })
+        }
+
+        // Ensure the switch has an associated account
+        if (!switchData.account) {
+            console.log('Switch found but no account associated:', switchData)
+            return res
+                .status(400)
+                .json({ error: 'No account associated with this switch.' })
+        }
+
+        const accountId = switchData.account // Get the account ID
+        const uploadSessionId = new mongoose.Types.ObjectId() // Unique ID for this session
+
+        // Format transactions for insertion into Data model
+        const formattedData = transactions.map((row) => ({
+            userId,
+            switch: switchId,
+            account: accountId, // Link transaction to the account
+            PostDate: row.PostDate,
+            ValDate: row.ValDate,
+            Details: row.Details,
+            Debit: parseFloat(row.Debit) || 0,
+            Credit: parseFloat(row.Credit) || 0,
+            uploadSessionId,
+            uploadedAt: new Date(),
+        }))
+
+        // Insert formatted transactions into Data model
+        await DataModel.insertMany(formattedData)
+
+        res.status(201).json({ message: 'Transactions successfully saved.' })
+    } catch (error) {
+        console.error('Error in manualEntry:', error)
+        res.status(500).json({ error: 'Internal server error.' })
     }
 }
 
