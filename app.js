@@ -54,10 +54,33 @@ mongoose
     })
 
 const corsOptions = {
-    origin: ['https://easyrecon.vercel.app', 'http://localhost:3003'], // specify your client's URL
+    origin: ['https://easyrecon.vercel.app', 'http://localhost:3000'], // specify your client's URL
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }
+app.use((req, res, next) => {
+    console.log(`[${req.method}] ${req.url}`)
+    next()
+})
+
+app._router.stack.forEach((r) => {
+    if (r.route && r.route.path) {
+        console.log(r.route.path)
+    }
+})
+app._router.stack.forEach((r) => {
+    if (r.route && r.route.path) {
+        console.log(
+            `[${Object.keys(r.route.methods).join(',').toUpperCase()}] ${
+                r.route.path
+            }`
+        )
+    }
+})
+app.use((req, res, next) => {
+    console.log(`[${req.method}] ${req.url}`)
+    next()
+})
 
 app.use(cors(corsOptions)) // Use this line to apply your CORS settings
 
@@ -66,6 +89,9 @@ app.use('/api/', userAccess)
 app.use('/api/', excelRoute)
 app.use('/api/', matchRoute)
 app.use('/api/', ruleRoute)
+app.post('/api/manual-entry-led', (req, res) => {
+    res.json({ message: 'Manual entry endpoint hit' })
+})
 
 /* Error handler Middlewares */
 // app.use('*', unknownEndpoint)

@@ -211,43 +211,104 @@ exports.uploadFile = async (req, res) => {
     }
 }
 
+// exports.manualEntry = async (req, res) => {
+//     try {
+//         const { transactions, switchId } = req.body
+//         const userId = req.user.id // Ensure user is authenticated
+
+//         // Validate switchId
+//         if (!switchId) {
+//             return res.status(400).json({ error: 'Switch ID is required.' })
+//         }
+
+//         // Find the switch and ensure it exists
+//         const switchData = await Switch.findById(switchId)
+//         if (!switchData) {
+//             return res.status(404).json({ error: 'Switch not found.' })
+//         }
+
+//         // Ensure the switch has an associated account
+//         if (!switchData.account) {
+//             console.log('Switch found but no account associated:', switchData)
+//             return res
+//                 .status(400)
+//                 .json({ error: 'No account associated with this switch.' })
+//         }
+
+//         const accountId = switchData.account // Get the account ID
+//         const uploadSessionId = new mongoose.Types.ObjectId() // Unique ID for this session
+
+//         // Format transactions for insertion into Data model
+//         const formattedData = transactions.map((row) => ({
+//             userId,
+//             switch: switchId,
+//             account: accountId, // Link transaction to the account
+//             PostDate: row.PostDate,
+//             ValDate: row.ValDate,
+//             Details: row.Details,
+//             Debit: parseFloat(row.Debit) || 0,
+//             Credit: parseFloat(row.Credit) || 0,
+//             USID: row.USID,
+//             uploadSessionId,
+//             uploadedAt: new Date(),
+//         }))
+
+//         // Insert formatted transactions into Data model
+//         await DataModel.insertMany(formattedData)
+
+//         res.status(201).json({ message: 'Transactions successfully saved.' })
+//     } catch (error) {
+//         console.error('Error in manualEntry:', error)
+//         res.status(500).json({ error: 'Internal server error.' })
+//     }
+// }
 exports.manualEntry = async (req, res) => {
+    console.log('manualEntry controller hit!')
     try {
+        console.log('✅ Sending response now...')
         const { transactions, switchId } = req.body
+        console.log('✅ Sending response now...')
         const userId = req.user.id // Ensure user is authenticated
 
-        // Validate switchId
-        if (!switchId) {
-            return res.status(400).json({ error: 'Switch ID is required.' })
+        // const switchData = await Switch.findById(switchId)
+        // console.log('Raw Switch Data:', switchData)
+        const switchData = await Switch.findById(switchId)
+        if (!switchData) {
+            return res.status(404).json({ error: 'Switch not found.' })
         }
+        await switchData.populate('account')
+
+        const accountExists = await Account.findById(switchData.account)
 
         // Find the switch and ensure it exists
-        const switchData = await Switch.findById(switchId)
+        // const switchData = await Switch.findById(switchId).populate('account') // Populate the account
+        // console.log('Switch Data:', switchData)
+
         if (!switchData) {
             return res.status(404).json({ error: 'Switch not found.' })
         }
 
         // Ensure the switch has an associated account
         if (!switchData.account) {
-            console.log('Switch found but no account associated:', switchData)
-            return res
-                .status(400)
-                .json({ error: 'No account associated with this switch.' })
+            return res.status(400).json({
+                error: 'No account associated with this switch. Please assign an account first.',
+            })
         }
 
-        const accountId = switchData.account // Get the account ID
+        const accountId = switchData.account._id // Get the account ID from the switch
+
         const uploadSessionId = new mongoose.Types.ObjectId() // Unique ID for this session
 
         // Format transactions for insertion into Data model
         const formattedData = transactions.map((row) => ({
             userId,
-            switch: switchId,
-            account: accountId, // Link transaction to the account
+            switch: switchId, // Only using switchId
             PostDate: row.PostDate,
             ValDate: row.ValDate,
             Details: row.Details,
             Debit: parseFloat(row.Debit) || 0,
             Credit: parseFloat(row.Credit) || 0,
+            USID: row.USID,
             uploadSessionId,
             uploadedAt: new Date(),
         }))
@@ -255,13 +316,108 @@ exports.manualEntry = async (req, res) => {
         // Insert formatted transactions into Data model
         await DataModel.insertMany(formattedData)
 
-        res.status(201).json({ message: 'Transactions successfully saved.' })
+        // Calculate total debit and update account balance
+        const totalDebit = formattedData.reduce(
+            (sum, row) => sum + parseFloat(row.Debit || 0),
+            0
+        )
+
+        // Fetch the account
+        const account = await Account.findById(accountId)
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found.' })
+        }
+
+        // Update the account balance
+        const currentBalance = parseFloat(account.balanceAsPerLedger || 0)
+        account.balanceAsPerLedger = (currentBalance + totalDebit).toFixed(2)
+        await account.save()
+
+        res.status(201).json({
+            message: 'Transactions successfully saved.',
+            updatedBalance: account.balanceAsPerLedger,
+            totalDebit,
+        })
     } catch (error) {
         console.error('Error in manualEntry:', error)
-        res.status(500).json({ error: 'Internal server error.' })
+        res.status(500).json({ error: 'Internal server error' })
     }
 }
+exports.manualEntryStmt = async (req, res) => {
+    try {
+        const { transactions, switchId } = req.body
+        const userId = req.user.id // Ensure user is authenticated
+        // const switchData = await Switch.findById(switchId)
+        // console.log('Raw Switch Data:', switchData)
+        const switchData = await Switch.findById(switchId)
+        if (!switchData) {
+            return res.status(404).json({ error: 'Switch not found.' })
+        }
+        await switchData.populate('account')
 
+        // Find the switch and ensure it exists
+        // const switchData = await Switch.findById(switchId).populate('account') // Populate the account
+        // console.log('Switch Data:', switchData)
+
+        if (!switchData) {
+            return res.status(404).json({ error: 'Switch not found.' })
+        }
+
+        // Ensure the switch has an associated account
+        if (!switchData.account) {
+            return res.status(400).json({
+                error: 'No account associated with this switch. Please assign an account first.',
+            })
+        }
+
+        const accountId = switchData.account._id // Get the account ID from the switch
+
+        const uploadSessionId = new mongoose.Types.ObjectId() // Unique ID for this session
+
+        // Format transactions for insertion into Data model
+        const formattedData = transactions.map((row) => ({
+            userId,
+            switch: switchId, // Only using switchId
+            PostDate: row.PostDate,
+            ValDate: row.ValDate,
+            Details: row.Details,
+            Debit: parseFloat(row.Debit) || 0,
+            Credit: parseFloat(row.Credit) || 0,
+            USID: row.USID,
+            uploadSessionId,
+            uploadedAt: new Date(),
+        }))
+
+        // Insert formatted transactions into Data model
+        await StatementModel.insertMany(formattedData)
+
+        // Calculate total debit and update account balance
+        const totalCredit = formattedData.reduce(
+            (sum, row) => sum + parseFloat(row.Credit || 0),
+            0
+        )
+
+        // Fetch the account
+        const account = await Account.findById(accountId)
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found.' })
+        }
+
+        // Update the account balance
+        const currentBalance = parseFloat(account.balanceAsPerStmt || 0)
+        account.balanceAsPerStmt = (currentBalance + totalCredit).toFixed(2)
+        await account.save()
+
+        res.status(201).json({
+            message: 'Transactions successfully saved.',
+            updatedBalance: account.balanceAsPerStmt,
+            totalCredit,
+        })
+    } catch (error) {
+        console.error('Error in manualEntry:', error)
+        res.status(500).json({ error: 'Internal server error' })
+    }
+}
 // exports.removeUploadedFile = async (req, res) => {
 //     try {
 //         const { switchId, uploadedAt } = req.body

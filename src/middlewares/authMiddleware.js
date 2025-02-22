@@ -5,7 +5,6 @@ const authenticateUsers = (req, res, next) => {
 
     // Extract token from Authorization header
     const authHeader = req.headers.authorization
-    console.log('Authorization header:', authHeader)
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.log('Unauthorized - Token missing or invalid format')
@@ -15,12 +14,10 @@ const authenticateUsers = (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1]
-    console.log('Token:', token)
 
     try {
         // Verify the token
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET)
-        console.log('Decoded Token:', decodedToken)
 
         // Attach user information to the request object
         req.user = decodedToken.user

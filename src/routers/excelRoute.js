@@ -180,7 +180,13 @@ router.post(
     upload.single('csvFile'),
     dataController.uploadFile
 )
-router.post('/manual-entry', authenticateUser, dataController.manualEntry)
+router.post('/manual-entry-led', authenticateUser, dataController.manualEntry)
+
+router.post(
+    '/manual-entry-stmt',
+    authenticateUser,
+    dataController.manualEntryStmt
+)
 
 router.post(
     '/remove-uploaded-file',

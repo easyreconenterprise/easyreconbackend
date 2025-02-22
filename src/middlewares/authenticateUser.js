@@ -127,7 +127,6 @@ const authenticateUser = async (req, res, next) => {
 
     // Extract token from Authorization header
     const authHeader = req.headers.authorization
-    console.log('Authorization header:', authHeader)
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.log('Unauthorized - Token missing or invalid format')
@@ -137,7 +136,6 @@ const authenticateUser = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1] // Extract the token part
-    console.log('Token:', token)
 
     try {
         // Verify the token
